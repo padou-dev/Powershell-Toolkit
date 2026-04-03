@@ -30,7 +30,13 @@ cd C:\Path\To\Your\Downloads\Powershell-Toolkit
 4. **Follow the Interactive Prompts: Choose your themes and opacity settings.**
 5. **Restart your Terminal to load the new** `$PROFILE` **and UI enhancements.**
 
----
+## ⚡ Instant Installation (Pro Way)
+
+If you have **PowerShell 7** installed and want to skip the manual download, copy and paste this command into an **Administrator** terminal:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -Command "iex (New-Object System.Net.WebClient).DownloadString('[https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1](https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1)')"
+```
 
 ## 🎨 Customization Options
 

@@ -1,3 +1,12 @@
+#-----[0. DETERMINE POWERSHELL VERSION/WARnING]-----
+```powershell
+# Check for PowerShell 7+
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host " [!] ERROR: This toolkit requires PowerShell 7+. You are currently running version $($PSVersionTable.PSVersion.Major)." -ForegroundColor Red
+    Write-Host " [!] Please install PowerShell 7 from https://aka.ms/powershell and try again." -ForegroundColor Yellow
+    exit
+}
+```
 # --- [1. DYNAMIC PATHS] ---
 # $HOME ensures portability for any user on the team
 $baseDir = Join-Path $HOME "Documents\PowerShell\Scripts"
