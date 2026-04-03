@@ -33,6 +33,38 @@ Injects 8 high-quality themes into your Windows Terminal settings without overwr
 
 ---
 
+## 🎨 Theme Gallery
+
+Take a look at the curated color schemes included in this toolkit. All screenshots feature the interactive `menu` command with **Terminal-Icons** enabled and the JetBrains Mono font installed.
+
+<table align="center">
+  <tr>
+    <td align="center"><b>Catppuccin Mocha</b><br><img src="images/catppuccin_mocha.png" width="400px"></td>
+    <td align="center"><b>CyberPunk 2077</b><br><img src="images/cyberpunk_2077.png" width="400px"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Dracula+</b><br><img src="images/dracula_plus.png" width="400px"></td>
+    <td align="center"><b>GitHub Dark</b><br><img src="images/github_dark.png" width="400px"></td>
+  </tr>
+</table>
+
+<details>
+<summary><b>📸 Click to see all 10 themes...</b></summary>
+<br>
+
+| Theme Name | Preview |
+| :--- | :--- |
+| **Apple System Colors** | ![Apple](images/apple_systems_colors.png) |
+| **Flatland** | ![Flatland](images/flatland.png) |
+| **Hacktober** | ![Hacktober](images/hacktober.png) |
+| **Obsidian** | ![Obsidian](images/obsidian.png) |
+| **Ottosson** | ![Ottosson](images/ottosson.png) |
+| **Ubuntu** | ![Ubuntu](images/ubuntu.png) |
+
+</details>
+
+---
+
 ## 📦 What this Toolkit Does
 
 ### 1. Environment Standardization
