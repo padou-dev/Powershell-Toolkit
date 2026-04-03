@@ -9,10 +9,26 @@ A portable, "one-click" deployment script designed to standardize a PowerShell 7
 
 ## 🚀 Quick Start
 
-1. Open **PowerShell 7** as Administrator.
-2. Run the `Setup.ps1` script.
-3. **Restart your Terminal** (Required to load the new profile).
-4. Type `menu` to launch the interactive toolkit.
+> [!WARNING]
+> **Do not "Right-Click > Run with PowerShell"**. This will attempt to run the script in Windows PowerShell 5.1, which is incompatible with this toolkit.
+
+### Correct Installation Steps:
+
+1. **Open PowerShell 7+** as an Administrator.
+2. **Navigate** to the folder containing your downloaded files:
+
+```powershell
+cd C:\Path\To\Your\Downloads\Powershell-Toolkit
+```
+
+3. **Execute** the script by typing:
+
+```powrshell
+.\Setup.ps1
+```
+
+4. **Follow the Interactive Prompts: Choose your themes and opacity settings.**
+5. **Restart your Terminal to load the new** `$PROFILE` **and UI enhancements.**
 
 ---
 
