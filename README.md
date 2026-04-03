@@ -16,6 +16,23 @@ A portable, "one-click" deployment script designed to standardize a PowerShell 7
 
 ---
 
+## 🎨 Customization Options
+
+During installation, you will have the choice to opt-in to the following:
+
+### 🌈 Professional Color Schemes
+Injects 8 high-quality themes into your Windows Terminal settings without overwriting your existing profiles:
+* **Catppuccin Mocha** (Modern Dark)
+* **CyberPunk 2077** (High Contrast)
+* **Dracula+** & **Obsidian** (Classic Developer Favorites)
+* **Apple & Ubuntu** (System-inspired palettes)
+* **GitHub Dark** & **Hacktober**
+
+### 🪟 UI Transparency
+* **92% Opacity:** Applies a subtle, professional transparency to all terminal profiles for a modern "Glass" aesthetic.
+
+---
+
 ## 📦 What this Toolkit Does
 
 ### 1. Environment Standardization
