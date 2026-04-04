@@ -1,12 +1,10 @@
 #-----[0. DETERMINE POWERSHELL VERSION/WARnING]-----
-```powershell
 # Check for PowerShell 7+
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     Write-Host " [!] ERROR: This toolkit requires PowerShell 7+. You are currently running version $($PSVersionTable.PSVersion.Major)." -ForegroundColor Red
     Write-Host " [!] Please install PowerShell 7 from https://aka.ms/powershell and try again." -ForegroundColor Yellow
     exit
 }
-```
 # --- [1. DYNAMIC PATHS] ---
 # $HOME ensures portability for any user on the team
 $baseDir = Join-Path $HOME "Documents\PowerShell\Scripts"
@@ -74,6 +72,7 @@ Write-Host "[+] Toolkit functions generated in $funcDir" -ForegroundColor Green
 $menuContent = @"
 `$toolkitPath = "$funcDir"
 `$toolkitScripts = Get-ChildItem -Path `$toolkitPath -Filter *.ps1
+`$repoUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1"
 
 Clear-Host
 Write-Host "=========================================" -ForegroundColor Green
@@ -87,16 +86,35 @@ if (Get-Module -Name Terminal-Icons) {
 }
 
 Write-Host "=========================================" -ForegroundColor Green
-Write-Host "       AVAILABLE TOOLKIT FUNCTIONS       " -ForegroundColor Cyan
+Write-Host "        AVAILABLE TOOLKIT FUNCTIONS       " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Green
 
 for (`$i = 0; `$i -lt `$toolkitScripts.Count; `$i++) {
     Write-Host (" [`$(`$i + 1)] " + `$toolkitScripts[`$i].BaseName) -ForegroundColor Yellow
 }
+Write-Host "-----------------------------------------" -ForegroundColor DarkGray
+Write-Host " [U] Update Toolkit from GitHub" -ForegroundColor Cyan
 Write-Host " [Q] Quit" -ForegroundColor Red
 Write-Host "=========================================" -ForegroundColor Green
 
 `$selection = Read-Host "`nEnter selection"
+
+# --- Handle Update ---
+if (`$selection -eq 'u' -or `$selection -eq 'U') {
+    Write-Host "[*] Downloading latest Setup.ps1..." -ForegroundColor Cyan
+    try {
+        `$setupPath = Join-Path "$baseDir" "Setup.ps1"
+        Invoke-WebRequest -Uri `$repoUrl -OutFile `$setupPath -ErrorAction Stop
+        Write-Host "[+] Download complete. Re-running setup..." -ForegroundColor Green
+        & `$setupPath
+        return
+    } catch {
+        Write-Host "[!] Update failed: `$($_.Exception.Message)" -ForegroundColor Red
+        Pause
+        return
+    }
+}
+
 if (`$selection -eq 'q' -or `$selection -eq 'Q') { return }
 
 if (`$selection -match '^\d+`$' -and [int]`$selection -le `$toolkitScripts.Count) {
