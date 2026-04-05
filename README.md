@@ -1,6 +1,6 @@
 # 🛠️ PowerShell Core IT Toolkit
 
-A portable, "one-click" deployment script designed to standardize a PowerShell 7 environment across multiple machines. This toolkit automates folder structures, installs visual enhancements, and provides a custom interactive menu for common IT tasks.
+A modular, "one-click" deployment system designed to standardize a PowerShell 7 environment across multiple machines. This toolkit automatically builds your local environment by syncing custom functions, visual enhancements, and an interactive menu directly from GitHub.
 
 > [!IMPORTANT]
 > **Requirements:** This script requires **PowerShell 7+** and **Administrator Privileges** for the initial setup.
@@ -9,10 +9,10 @@ A portable, "one-click" deployment script designed to standardize a PowerShell 7
 
 ## ⚡ Instant Installation (Pro Way)
 
-If you have **PowerShell 7** installed and want to skip the manual download, copy and paste this command into an **Administrator** terminal:
+If you have **PowerShell 7** installed, copy and paste this command into an **Administrator** terminal to deploy the entire toolkit automatically:
 
-```powershell
-pwsh -ExecutionPolicy Bypass -Command "iex (New-Object System.Net.WebClient).DownloadString('[https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1](https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1)')"
+```
+pwsh -ExecutionPolicy Bypass -Command "iex (New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1')"
 ```
 
 ---
@@ -22,42 +22,17 @@ pwsh -ExecutionPolicy Bypass -Command "iex (New-Object System.Net.WebClient).Dow
 > [!WARNING]
 > **Do not "Right-Click > Run with PowerShell"**. This will attempt to run the script in Windows PowerShell 5.1, which is incompatible with this toolkit.
 
-### Correct Installation Steps:
-
 1. **Open PowerShell 7+** as an Administrator.
-2. **Navigate** to the folder containing your downloaded files:
-   ```powershell
-   cd C:\Path\To\Your\Downloads\Powershell-Toolkit
-   ```
-3. **Execute** the script by typing:
-   ```powershell
-   .\Setup.ps1
-   ```
-4. **Follow the Interactive Prompts:** Choose your themes and opacity settings.
-5. **Restart your Terminal** to load the new `$PROFILE` and UI enhancements.
-
----
-
-## 🎨 Customization Options
-
-During installation, you will have the choice to opt-in to the following:
-
-### 🌈 Professional Color Schemes
-Injects 8 high-quality themes into your Windows Terminal settings without overwriting your existing profiles:
-* **Catppuccin Mocha** (Modern Dark)
-* **CyberPunk 2077** (High Contrast)
-* **Dracula+** & **Obsidian** (Classic Developer Favorites)
-* **Apple & Ubuntu** (System-inspired palettes)
-* **GitHub Dark** & **Hacktober**
-
-### 🪟 UI Transparency
-* **92% Opacity:** Applies a subtle, professional transparency to all terminal profiles for a modern "Glass" aesthetic.
+2. **Execute the setup:** Run `.\Setup.ps1` from your local repository.
+3. **Automatic Sync:** The script will automatically create your `Functions` directory and download all toolkit modules from GitHub.
+4. **Restart your Terminal** to load the new `$PROFILE`.
+5. Type `menu` to launch the interactive toolkit.
 
 ---
 
 ## 🎨 Theme Gallery
 
-Take a look at the curated color schemes included in this toolkit. All screenshots feature the interactive `menu` command with **Terminal-Icons** enabled and a Nerd Font installed.
+The toolkit injects 8+ professional color schemes into your Windows Terminal. All screenshots feature the interactive `menu` with **Terminal-Icons** and a Nerd Font.
 
 <table align="center">
   <tr>
@@ -71,67 +46,74 @@ Take a look at the curated color schemes included in this toolkit. All screensho
 </table>
 
 <details>
-<summary><b>📸 Click to see all 10 themes...</b></summary>
+<summary><b>📸 Click to see more themes...</b></summary>
 <br>
 
 | Theme Name | Preview |
 | :--- | :--- |
 | **Apple System Colors** | ![Apple](images/apple_systems_colors.png) |
 | **Flatland** | ![Flatland](images/flatland.png) |
-| **Hacktober** | ![Hacktober](images/hacktober.png) |
 | **Obsidian** | ![Obsidian](images/obsidian.png) |
-| **Ottosson** | ![Ottosson](images/ottosson.png) |
 | **Ubuntu** | ![Ubuntu](images/ubuntu.png) |
 
 </details>
-
 ---
 
 ## 📦 Key Features
 
-### 🔄 Self-Updating Core
-* **[U] Update:** The interactive menu includes a built-in update function that pulls the latest version of the toolkit directly from GitHub, ensuring your functions and themes are always current.
+### 🔄 Dynamic Function Sync
+
+The toolkit no longer relies on hardcoded scripts. It loops through a central registry on GitHub and downloads individual `.ps1` files into your local `Functions` folder. 
+
+* **[U] Update:** Use the 'U' key in the menu to pull the latest logic, new functions, and theme updates instantly.
 
 ### 🛠️ Environment Standardization
-The script automatically configures your `$PROFILE` with the following:
+
 * **Terminal-Icons:** Adds file-type icons to your directory listings.
 * **PSReadLine:** Optimized with `MenuComplete` enabled on the **Tab** key.
-* **Auto-Loader:** Dynamically "dot-sources" any `.ps1` script found in the `Functions` folder.
-* **Alias:** Creates the `menu` command as a shortcut to the interactive manager.
+* **Auto-Loader:** Dynamically "dot-sources" every script in your Functions folder on startup.
 
 ### 📋 Interactive Menu (`menu`)
-By typing `menu` from any directory, you get a high-visibility dashboard:
-* **File Explorer:** Displays the contents of your current folder with icons.
-* **Function Picker:** Lists all available scripts in your toolkit folder.
-* **Execution:** Simply type the number of the script you want to run.
+
+A high-visibility dashboard for your daily IT tasks:
+
+* **File Explorer:** View current folder contents with icons.
+* **Function Picker:** Lists and executes all synced scripts by number.
 
 ---
 
 ## 🛠️ Included Functions
 
+### `hash_ls`
+
+A specialized audit tool for security and file integrity.
+
+* **Features:** Displays SHA256 hashes, human-readable file sizes (MB/GB), and file icons for every file in the current directory.
+
 ### `mass_rename`
-A safe, preview-first renaming tool. 
-* **Safety:** Displays a preview of all changes and asks for confirmation (`y/n`) before applying.
+
+A safe, preview-first renaming tool. Displays a "Before and After" list and requires a `y/n` confirmation before applying changes.
 
 ### `space_to_dots`
-A cleanup utility that replaces all spaces in filenames within the current directory with periods (`.`).
+
+Replaces all spaces in filenames within the current directory with periods (`.`) for terminal-friendly naming.
 
 ---
 
 ## 🎨 Visual Requirements
+
 To see the icons correctly, you must use a **Nerd Font**.
+
 1. Download a font (e.g., *JetBrains Mono Nerd Font*) from [nerdfonts.com](https://www.nerdfonts.com).
 2. Install it on Windows.
-3. Open Terminal Settings (`Ctrl + ,`) > **Profiles** > **Defaults** > **Appearance** > Set **Font face** to your chosen Nerd Font.
+3. Open Terminal Settings > **Appearance** > Set **Font face** to your Nerd Font.
 
 ---
 
-## 📂 File Structure
+## 📂 Local File Structure
 
-After setup, your files will be organized as follows:
-
-* `Documents\PowerShell\Scripts\` - Contains the main `Menu.ps1`
-* `Documents\PowerShell\Scripts\Functions\` - Stores your individual `.ps1` function files.
+* `Documents\PowerShell\Scripts\Menu.ps1` - The interactive manager.
+* `Documents\PowerShell\Scripts\Functions\` - Your local library of synced scripts.
 
 ### ⚖️ License
 
