@@ -1,5 +1,5 @@
 #-----[0. VERSION & PRE-CHECKS]-----
-$currentVersion = "v1.1.1"
+$currentVersion = "v1.1.5"
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     Write-Host " [!] ERROR: This toolkit requires PowerShell 7+. You are currently running version $($PSVersionTable.PSVersion.Major)." -ForegroundColor Red
