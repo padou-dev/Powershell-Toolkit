@@ -124,64 +124,43 @@ $profileDir = Split-Path $PROFILE
 if (!(Test-Path $profileDir)) { New-Item -Path $profileDir -ItemType Directory -Force }
 Set-Content -Path $PROFILE -Value $profileContent -Force
 
-# --- [8. TERMINAL CUSTOMIZATION - THE FINAL FIX] ---
-Write-Host "[*] Hard-Resetting Terminal Profiles..." -ForegroundColor Gray
-
-# 1. Kill Terminal process to release the file lock
-$terminalProcess = Get-Process -Name "WindowsTerminal" -ErrorAction SilentlyContinue
-if ($terminalProcess) {
-    Write-Host "[!] Windows Terminal is open. Closing it to apply settings..." -ForegroundColor Yellow
-    Stop-Process -Name "WindowsTerminal" -Force
-    Start-Sleep -Seconds 1 # Wait for file lock release
-}
+# --- [8. TERMINAL CUSTOMIZATION - THEME LIBRARY] ---
+Write-Host "[*] Updating Terminal Theme Library..." -ForegroundColor Gray
 
 $paths = @(
     "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
     "$env:LOCALAPPDATA\Microsoft\Windows Terminal\settings.json"
 )
 
-$targetScheme = "Catppuccin Mocha"
+$themePack = @(
+    @{ name = "Catppuccin Mocha"; background = "#1E1E2E"; foreground = "#CDD6F4"; black = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"; blue = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE" },
+    @{ name = "Dracula"; background = "#282A36"; foreground = "#F8F8F2"; black = "#21222C"; red = "#FF5555"; green = "#50FA7B"; yellow = "#F1FA8C"; blue = "#BD93F9"; purple = "#FF79C6"; cyan = "#8BE9FD"; white = "#F8F8F2" },
+    @{ name = "CyberPunk 2077"; background = "#000b1e"; foreground = "#0abdc6"; black = "#000b1e"; red = "#ea00d9"; green = "#0abdc6"; yellow = "#f5ed00"; blue = "#0abdc6"; purple = "#ea00d9"; cyan = "#0abdc6"; white = "#0abdc6" }
+)
 
 foreach ($settingsPath in $paths) {
     if (Test-Path $settingsPath) {
         try {
-            $jsonRaw = Get-Content $settingsPath -Raw | ConvertFrom-Json
-            
-            # Ensure schemes array exists
-            if ($null -eq $jsonRaw.schemes) { $jsonRaw | Add-Member -Name "schemes" -Value @() -NotePropertyMembers }
+            $settingsJson = Get-Content $settingsPath -Raw | ConvertFrom-Json
+            if ($null -eq $settingsJson.schemes) { $settingsJson | Add-Member -Name "schemes" -Value @() -NotePropertyMembers }
 
-            # Inject the scheme specifically
-            if ($null -eq ($jsonRaw.schemes | Where-Object { $_.name -eq $targetScheme })) {
-                $mocha = [PSCustomObject]@{
-                    name = $targetScheme
-                    background = "#1E1E2E"; foreground = "#CDD6F4"
-                    black = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"
-                    blue = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE"
+            $addedCount = 0
+            foreach ($theme in $themePack) {
+                if ($null -eq ($settingsJson.schemes | Where-Object { $_.name -eq $theme.name })) {
+                    $settingsJson.schemes += [PSCustomObject]$theme
+                    $addedCount++
                 }
-                $jsonRaw.schemes += $mocha
             }
 
-            # Remove any OLD 'PowerShell Toolkit' profiles to avoid ID conflicts
-            $jsonRaw.profiles.list = $jsonRaw.profiles.list | Where-Object { $_.name -ne "PowerShell Toolkit" }
-
-            # Create fresh profile
-            $newProfile = [PSCustomObject]@{
-                name        = "PowerShell Toolkit"
-                commandline = "pwsh.exe -NoExit -Command `"menu`""
-                font        = [PSCustomObject]@{ face = "JetBrainsMono NF" }
-                colorScheme = $targetScheme
-                useAcrylic  = $true
-                acrylicOpacity = 0.85
+            if ($addedCount -gt 0) {
+                $finalJson = $settingsJson | ConvertTo-Json -Depth 100
+                [System.IO.File]::WriteAllText($settingsPath, $finalJson, [System.Text.Encoding]::UTF8)
+                Write-Host "[+] Added $addedCount new themes to the library." -ForegroundColor Green
+            } else {
+                Write-Host "[*] Theme library is already up to date." -ForegroundColor DarkGray
             }
-            $jsonRaw.profiles.list += $newProfile
-
-            # Save with UTF8 No BOM using .NET to ensure no character corruption
-            $finalJson = $jsonRaw | ConvertTo-Json -Depth 10
-            [System.IO.File]::WriteAllText($settingsPath, $finalJson, [System.Text.Encoding]::UTF8)
-            
-            Write-Host "[+] Cleaned and Updated: $settingsPath" -ForegroundColor Green
         } catch {
-            Write-Host " [!] Error during deep clean: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host " [!] Could not update themes at $settingsPath" -ForegroundColor Yellow
         }
     }
 }
