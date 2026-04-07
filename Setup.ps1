@@ -1,4 +1,6 @@
-#-----[0. DETERMINE POWERSHELL VERSION/WARNING]-----
+#-----[0. VERSION & PRE-CHECKS]-----
+$currentVersion = "v1.1.0"
+
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     Write-Host " [!] ERROR: This toolkit requires PowerShell 7+. You are currently running version $($PSVersionTable.PSVersion.Major)." -ForegroundColor Red
     Write-Host " [!] Please install PowerShell 7 from https://aka.ms/powershell and try again." -ForegroundColor Yellow
@@ -10,8 +12,9 @@ $baseDir = Join-Path $HOME "Documents\PowerShell\Scripts"
 $funcDir = Join-Path $baseDir "Functions"
 $menuScriptPath = Join-Path $baseDir "Menu.ps1"
 $baseUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Functions/"
+$setupUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1"
 
-Write-Host "`n--- Starting Master Environment Setup ---" -ForegroundColor Cyan
+Write-Host "`n--- Starting Master Environment Setup ($currentVersion) ---" -ForegroundColor Cyan
 
 # --- [2. Administrator Check] ---
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -20,38 +23,49 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
     return
 }
 
-# --- [3. Dependency Check & Visual Requirements] ---
+# --- [3. PRE-FLIGHT INTERNET CHECK] ---
+Write-Host "[*] Verifying Cloud Connection..." -ForegroundColor Gray
+if (-not (Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet)) {
+    Write-Host " [!] ERROR: No internet connection detected. Setup/Sync aborted." -ForegroundColor Red
+    return
+}
+
+# --- [4. Dependency Check] ---
 if (!(Get-Module -ListAvailable Terminal-Icons)) {
     Write-Host "[!] Terminal-Icons not found. Installing..." -ForegroundColor Yellow
     Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -AllowClobber
 }
 
-# --- [4. Folder & Function Sync] ---
+# --- [5. Function Sync Logic] ---
 if (!(Test-Path $funcDir)) { New-Item -Path $funcDir -ItemType Directory -Force }
 
-# List of functions to sync from GitHub
-$functionNames = @("mass_rename.ps1", "space_to_dots.ps1", "hash_ls.ps1")
+# Updated list including your new sysinfo tool
+$functionNames = @("mass_rename.ps1", "space_to_dots.ps1", "hash_ls.ps1", "get_sysinfo.ps1")
 
 foreach ($funcName in $functionNames) {
-    Write-Host "[*] Syncing $funcName from GitHub..." -ForegroundColor Gray
     $destPath = Join-Path $funcDir $funcName
+    Write-Host "[*] Syncing $funcName from GitHub..." -ForegroundColor Gray
+    
     try {
         Invoke-WebRequest -Uri ($baseUrl + $funcName) -OutFile $destPath -ErrorAction Stop
     } catch {
-        Write-Host " [!] Failed to sync $funcName." -ForegroundColor Red
+        Write-Host " [!] Failed to sync $funcName. Skipping..." -ForegroundColor Yellow
+        if (Test-Path $destPath) { Remove-Item $destPath } # Cleanup partials
     }
 }
 Write-Host "[+] Toolkit functions synchronized in $funcDir" -ForegroundColor Green
 
-# --- [5. Generate Menu.ps1] ---
+# --- [6. Generate Menu.ps1] ---
 $menuContent = @"
 `$toolkitPath = "$funcDir"
 `$toolkitScripts = Get-ChildItem -Path `$toolkitPath -Filter *.ps1
-`$repoUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1"
+`$repoUrl = "$setupUrl"
+`$version = "$currentVersion"
 
 Clear-Host
 Write-Host "=========================================" -ForegroundColor Green
-Write-Host " CURRENT FOLDER: `$((Get-Location).Path)" -ForegroundColor Cyan
+Write-Host " TOOLKIT: `$version | USER: `$env:USERNAME" -ForegroundColor Cyan
+Write-Host " CURRENT FOLDER: `$((Get-Location).Path)" -ForegroundColor Gray
 Write-Host "=========================================" -ForegroundColor Green
 
 if (Get-Module -Name Terminal-Icons) {
@@ -61,23 +75,29 @@ if (Get-Module -Name Terminal-Icons) {
 }
 
 Write-Host "=========================================" -ForegroundColor Green
-Write-Host "        AVAILABLE TOOLKIT FUNCTIONS       " -ForegroundColor Cyan
+Write-Host "         AVAILABLE FUNCTIONS             " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Green
 
 for (`$i = 0; `$i -lt `$toolkitScripts.Count; `$i++) {
     Write-Host (" [`$(`$i + 1)] " + `$toolkitScripts[`$i].BaseName) -ForegroundColor Yellow
 }
 Write-Host "-----------------------------------------" -ForegroundColor DarkGray
-Write-Host " [U] Update Toolkit from GitHub" -ForegroundColor Cyan
+Write-Host " [U] Update Toolkit (Pre-Flight Sync)" -ForegroundColor Cyan
 Write-Host " [Q] Quit" -ForegroundColor Red
 Write-Host "=========================================" -ForegroundColor Green
 
 `$selection = Read-Host "`nEnter selection"
 
 if (`$selection -eq 'u' -or `$selection -eq 'U') {
-    `$setupPath = Join-Path "$baseDir" "Setup.ps1"
-    Invoke-WebRequest -Uri `$repoUrl -OutFile `$setupPath -ErrorAction Stop
-    & `$setupPath
+    Write-Host "[*] Checking Connectivity..." -ForegroundColor Cyan
+    if (Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet) {
+        `$setupPath = Join-Path "$baseDir" "Setup.ps1"
+        Invoke-WebRequest -Uri `$repoUrl -OutFile `$setupPath -ErrorAction Stop
+        & `$setupPath
+    } else {
+        Write-Host "[!] No Internet. Update Aborted." -ForegroundColor Red
+        Pause
+    }
     return
 }
 
@@ -91,7 +111,7 @@ if (`$selection -match '^\d+`$' -and [int]`$selection -le `$toolkitScripts.Count
 "@
 Set-Content -Path $menuScriptPath -Value $menuContent -Force
 
-# --- [6. Update Profile] ---
+# --- [7. Update Profile] ---
 $profileContent = @"
 Import-Module -Name Terminal-Icons
 Import-Module PSReadLine
@@ -104,7 +124,59 @@ $profileDir = Split-Path $PROFILE
 if (!(Test-Path $profileDir)) { New-Item -Path $profileDir -ItemType Directory -Force }
 Set-Content -Path $PROFILE -Value $profileContent -Force
 
-# --- [7. Terminal Customization (Omitted for brevity, keep your original JSON code here)] ---
-# ... (Paste your Section 8 from your previous Setup.ps1 here) ...
+# --- [8. TERMINAL CUSTOMIZATION] ---
+Write-Host "[*] Configuring Windows Terminal Profiles..." -ForegroundColor Gray
 
-Write-Host "`n[+++] SETUP COMPLETE! Restart PowerShell to enable the 'menu' command." -ForegroundColor Green
+$settingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
+
+if (Test-Path $settingsPath) {
+    $settings = Get-Content $settingsPath | ConvertFrom-Json
+    
+    # 1. Add Custom Color Schemes
+    $newSchemes = @(
+        @{
+            name = "Catppuccin Mocha"
+            background = "#1E1E2E"
+            foreground = "#CDD6F4"
+            black = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"
+            blue = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE"
+        },
+        @{
+            name = "Dracula"
+            background = "#282A36"
+            foreground = "#F8F8F2"
+            black = "#21222C"; red = "#FF5555"; green = "#50FA7B"; yellow = "#F1FA8C"
+            blue = "#BD93F9"; purple = "#FF79C6"; cyan = "#8BE9FD"; white = "#F8F8F2"
+        }
+    )
+
+    foreach ($scheme in $newSchemes) {
+        if ($null -eq ($settings.schemes | Where-Object { $_.name -eq $scheme.name })) {
+            $settings.schemes += $scheme
+        }
+    }
+
+    # 2. Add "PowerShell Toolkit" Profile
+    $toolkitProfile = @{
+        name = "PowerShell Toolkit"
+        commandline = "pwsh.exe -NoExit -Command `"menu`""
+        font = @{ face = "JetBrainsMono NF" } # Assumes you have a Nerd Font installed
+        colorScheme = "Catppuccin Mocha"
+        cursorShape = "filledBox"
+        useAcrylic = $true
+        acrylicOpacity = 0.85
+    }
+
+    if ($null -eq ($settings.profiles.list | Where-Object { $_.name -eq "PowerShell Toolkit" })) {
+        $settings.profiles.list += $toolkitProfile
+        Write-Host "[+] Added 'PowerShell Toolkit' profile to Windows Terminal." -ForegroundColor Green
+    }
+
+    # 3. Save Settings
+    $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath
+} else {
+    Write-Host " [!] Windows Terminal settings not found. Skipping UI customization." -ForegroundColor Yellow
+}
+
+Write-Host "`n[+++] SETUP COMPLETE! ($currentVersion)" -ForegroundColor Green
+Write-Host "Restart PowerShell or Open Windows Terminal to see your new 'PowerShell Toolkit' profile." -ForegroundColor Yellow
