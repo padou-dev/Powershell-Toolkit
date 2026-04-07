@@ -1,5 +1,5 @@
 #-----[0. VERSION & PRE-CHECKS]-----
-$currentVersion = "v1.1.0"
+$currentVersion = "v1.1.1"
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     Write-Host " [!] ERROR: This toolkit requires PowerShell 7+. You are currently running version $($PSVersionTable.PSVersion.Major)." -ForegroundColor Red
@@ -82,7 +82,7 @@ for (`$i = 0; `$i -lt `$toolkitScripts.Count; `$i++) {
     Write-Host (" [`$(`$i + 1)] " + `$toolkitScripts[`$i].BaseName) -ForegroundColor Yellow
 }
 Write-Host "-----------------------------------------" -ForegroundColor DarkGray
-Write-Host " [U] Update Toolkit (Pre-Flight Sync)" -ForegroundColor Cyan
+Write-Host " [U] Update Toolkit" -ForegroundColor Cyan
 Write-Host " [Q] Quit" -ForegroundColor Red
 Write-Host "=========================================" -ForegroundColor Green
 
@@ -124,58 +124,52 @@ $profileDir = Split-Path $PROFILE
 if (!(Test-Path $profileDir)) { New-Item -Path $profileDir -ItemType Directory -Force }
 Set-Content -Path $PROFILE -Value $profileContent -Force
 
-# --- [8. TERMINAL CUSTOMIZATION] ---
+# --- [8. TERMINAL CUSTOMIZATION - HARDENED] ---
 Write-Host "[*] Configuring Windows Terminal Profiles..." -ForegroundColor Gray
 
 $settingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
 
 if (Test-Path $settingsPath) {
-    $settings = Get-Content $settingsPath | ConvertFrom-Json
+    # Using -Raw to ensure the JSON string is read correctly
+    $settingsJson = Get-Content $settingsPath -Raw | ConvertFrom-Json
     
-    # 1. Add Custom Color Schemes
-    $newSchemes = @(
-        @{
-            name = "Catppuccin Mocha"
-            background = "#1E1E2E"
-            foreground = "#CDD6F4"
-            black = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"
-            blue = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE"
-        },
-        @{
-            name = "Dracula"
-            background = "#282A36"
-            foreground = "#F8F8F2"
-            black = "#21222C"; red = "#FF5555"; green = "#50FA7B"; yellow = "#F1FA8C"
-            blue = "#BD93F9"; purple = "#FF79C6"; cyan = "#8BE9FD"; white = "#F8F8F2"
-        }
-    )
-
-    foreach ($scheme in $newSchemes) {
-        if ($null -eq ($settings.schemes | Where-Object { $_.name -eq $scheme.name })) {
-            $settings.schemes += $scheme
-        }
+    # 1. Define Schemes with exact Name matching
+    $catppuccin = @{
+        name = "Catppuccin Mocha"
+        background = "#1E1E2E"; foreground = "#CDD6F4"
+        black = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"
+        blue = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE"
     }
 
-    # 2. Add "PowerShell Toolkit" Profile
+    # 2. Ensure Schemes list exists and Add Catppuccin if missing
+    if ($null -eq $settingsJson.schemes) { $settingsJson.schemes = @() }
+    
+    if ($null -eq ($settingsJson.schemes | Where-Object { $_.name -eq "Catppuccin Mocha" })) {
+        $settingsJson.schemes += $catppuccin
+        Write-Host "[+] Injected Catppuccin Mocha Color Scheme." -ForegroundColor Green
+    }
+
+    # 3. Create Profile (Linking to the exact scheme name above)
     $toolkitProfile = @{
         name = "PowerShell Toolkit"
         commandline = "pwsh.exe -NoExit -Command `"menu`""
-        font = @{ face = "JetBrainsMono NF" } # Assumes you have a Nerd Font installed
-        colorScheme = "Catppuccin Mocha"
+        font = @{ face = "JetBrainsMono NF" }
+        colorScheme = "Catppuccin Mocha" # Must match $catppuccin.name exactly
         cursorShape = "filledBox"
         useAcrylic = $true
         acrylicOpacity = 0.85
     }
 
-    if ($null -eq ($settings.profiles.list | Where-Object { $_.name -eq "PowerShell Toolkit" })) {
-        $settings.profiles.list += $toolkitProfile
-        Write-Host "[+] Added 'PowerShell Toolkit' profile to Windows Terminal." -ForegroundColor Green
+    # 4. Add Profile if missing
+    if ($null -eq ($settingsJson.profiles.list | Where-Object { $_.name -eq "PowerShell Toolkit" })) {
+        $settingsJson.profiles.list += $toolkitProfile
+        Write-Host "[+] Added 'PowerShell Toolkit' profile." -ForegroundColor Green
     }
 
-    # 3. Save Settings
-    $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath
+    # 5. Force Save with UTF8 encoding (Windows Terminal prefers this)
+    $settingsJson | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding utf8
 } else {
-    Write-Host " [!] Windows Terminal settings not found. Skipping UI customization." -ForegroundColor Yellow
+    Write-Host " [!] Windows Terminal settings not found." -ForegroundColor Yellow
 }
 
 Write-Host "`n[+++] SETUP COMPLETE! ($currentVersion)" -ForegroundColor Green
