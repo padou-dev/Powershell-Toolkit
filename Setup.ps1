@@ -124,57 +124,52 @@ $profileDir = Split-Path $PROFILE
 if (!(Test-Path $profileDir)) { New-Item -Path $profileDir -ItemType Directory -Force }
 Set-Content -Path $PROFILE -Value $profileContent -Force
 
-# --- [8. TERMINAL CUSTOMIZATION - HARDENED V2] ---
-Write-Host "[*] Configuring Windows Terminal Profiles..." -ForegroundColor Gray
+# --- [8. TERMINAL CUSTOMIZATION - THEME PACK] ---
+Write-Host "[*] Injecting Toolkit Theme Pack..." -ForegroundColor Gray
 
-$settingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
+$paths = @(
+    "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
+    "$env:LOCALAPPDATA\Microsoft\Windows Terminal\settings.json"
+)
 
-if (Test-Path $settingsPath) {
-    try {
-        $settingsJson = Get-Content $settingsPath -Raw | ConvertFrom-Json -ErrorAction Stop
-        
-        # 1. Ensure the 'schemes' array exists
-        if ($null -eq $settingsJson.schemes) {
-            $settingsJson | Add-Member -MemberType NoteProperty -Name "schemes" -Value @()
-        }
+# Define your Theme Gallery
+$themePack = @(
+    @{ name = "Catppuccin Mocha"; background = "#1E1E2E"; foreground = "#CDD6F4"; black = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"; blue = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE" },
+    @{ name = "Dracula"; background = "#282A36"; foreground = "#F8F8F2"; black = "#21222C"; red = "#FF5555"; green = "#50FA7B"; yellow = "#F1FA8C"; blue = "#BD93F9"; purple = "#FF79C6"; cyan = "#8BE9FD"; white = "#F8F8F2" },
+    @{ name = "CyberPunk 2077"; background = "#000b1e"; foreground = "#0abdc6"; black = "#000b1e"; red = "#ea00d9"; green = "#0abdc6"; yellow = "#f5ed00"; blue = "#0abdc6"; purple = "#ea00d9"; cyan = "#0abdc6"; white = "#0abdc6" }
+)
 
-        # 2. Add Catppuccin Mocha if it doesn't exist
-        $schemeName = "Catppuccin Mocha"
-        if ($null -eq ($settingsJson.schemes | Where-Object { $_.name -eq $schemeName })) {
-            $catppuccin = [PSCustomObject]@{
-                name       = $schemeName
-                background = "#1E1E2E"
-                foreground = "#CDD6F4"
-                black      = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"
-                blue       = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE"
+foreach ($settingsPath in $paths) {
+    if (Test-Path $settingsPath) {
+        $settingsJson = Get-Content $settingsPath -Raw | ConvertFrom-Json
+        if ($null -eq $settingsJson.schemes) { $settingsJson.schemes = @() }
+
+        # Inject each theme if missing
+        foreach ($theme in $themePack) {
+            if ($null -eq ($settingsJson.schemes | Where-Object { $_.name -eq $theme.name })) {
+                $settingsJson.schemes += [PSCustomObject]$theme
             }
-            $settingsJson.schemes += $catppuccin
-            Write-Host "[+] Injected $schemeName Scheme." -ForegroundColor Green
         }
 
-        # 3. Add "PowerShell Toolkit" Profile
+        # Update or Create the Profile
         $profileName = "PowerShell Toolkit"
-        if ($null -eq ($settingsJson.profiles.list | Where-Object { $_.name -eq $profileName })) {
+        $existingProfile = $settingsJson.profiles.list | Where-Object { $_.name -eq $profileName }
+
+        if ($null -eq $existingProfile) {
             $toolkitProfile = [PSCustomObject]@{
                 name        = $profileName
                 commandline = "pwsh.exe -NoExit -Command `"menu`""
                 font        = [PSCustomObject]@{ face = "JetBrainsMono NF" }
-                colorScheme = $schemeName
+                colorScheme = "Catppuccin Mocha" # You can change this to "Dracula" or "CyberPunk 2077"
                 useAcrylic  = $true
                 acrylicOpacity = 0.85
             }
             $settingsJson.profiles.list += $toolkitProfile
-            Write-Host "[+] Added '$profileName' Profile." -ForegroundColor Green
         }
 
-        # 4. Save with high depth and UTF8 to ensure Terminal reads it correctly
-        $settingsJson | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding utf8
-        Write-Host "[!] Terminal settings updated successfully." -ForegroundColor Green
-    } catch {
-        Write-Host " [!] Error parsing Terminal settings: $($_.Exception.Message)" -ForegroundColor Red
+        $finalJson = $settingsJson | ConvertTo-Json -Depth 10
+        [System.IO.File]::WriteAllText($settingsPath, $finalJson, [System.Text.Encoding]::UTF8)
     }
-} else {
-    Write-Host " [!] Windows Terminal settings not found." -ForegroundColor Yellow
 }
 
 Write-Host "`n[+++] SETUP COMPLETE! ($currentVersion)" -ForegroundColor Green
