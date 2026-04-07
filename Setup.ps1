@@ -124,50 +124,55 @@ $profileDir = Split-Path $PROFILE
 if (!(Test-Path $profileDir)) { New-Item -Path $profileDir -ItemType Directory -Force }
 Set-Content -Path $PROFILE -Value $profileContent -Force
 
-# --- [8. TERMINAL CUSTOMIZATION - HARDENED] ---
+# --- [8. TERMINAL CUSTOMIZATION - HARDENED V2] ---
 Write-Host "[*] Configuring Windows Terminal Profiles..." -ForegroundColor Gray
 
 $settingsPath = "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
 
 if (Test-Path $settingsPath) {
-    # Using -Raw to ensure the JSON string is read correctly
-    $settingsJson = Get-Content $settingsPath -Raw | ConvertFrom-Json
-    
-    # 1. Define Schemes with exact Name matching
-    $catppuccin = @{
-        name = "Catppuccin Mocha"
-        background = "#1E1E2E"; foreground = "#CDD6F4"
-        black = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"
-        blue = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE"
-    }
+    try {
+        $settingsJson = Get-Content $settingsPath -Raw | ConvertFrom-Json -ErrorAction Stop
+        
+        # 1. Ensure the 'schemes' array exists
+        if ($null -eq $settingsJson.schemes) {
+            $settingsJson | Add-Member -MemberType NoteProperty -Name "schemes" -Value @()
+        }
 
-    # 2. Ensure Schemes list exists and Add Catppuccin if missing
-    if ($null -eq $settingsJson.schemes) { $settingsJson.schemes = @() }
-    
-    if ($null -eq ($settingsJson.schemes | Where-Object { $_.name -eq "Catppuccin Mocha" })) {
-        $settingsJson.schemes += $catppuccin
-        Write-Host "[+] Injected Catppuccin Mocha Color Scheme." -ForegroundColor Green
-    }
+        # 2. Add Catppuccin Mocha if it doesn't exist
+        $schemeName = "Catppuccin Mocha"
+        if ($null -eq ($settingsJson.schemes | Where-Object { $_.name -eq $schemeName })) {
+            $catppuccin = [PSCustomObject]@{
+                name       = $schemeName
+                background = "#1E1E2E"
+                foreground = "#CDD6F4"
+                black      = "#45475A"; red = "#F38BA8"; green = "#A6E3A1"; yellow = "#F9E2AF"
+                blue       = "#89B4FA"; purple = "#CBA6F7"; cyan = "#94E2D5"; white = "#BAC2DE"
+            }
+            $settingsJson.schemes += $catppuccin
+            Write-Host "[+] Injected $schemeName Scheme." -ForegroundColor Green
+        }
 
-    # 3. Create Profile (Linking to the exact scheme name above)
-    $toolkitProfile = @{
-        name = "PowerShell Toolkit"
-        commandline = "pwsh.exe -NoExit -Command `"menu`""
-        font = @{ face = "JetBrainsMono NF" }
-        colorScheme = "Catppuccin Mocha" # Must match $catppuccin.name exactly
-        cursorShape = "filledBox"
-        useAcrylic = $true
-        acrylicOpacity = 0.85
-    }
+        # 3. Add "PowerShell Toolkit" Profile
+        $profileName = "PowerShell Toolkit"
+        if ($null -eq ($settingsJson.profiles.list | Where-Object { $_.name -eq $profileName })) {
+            $toolkitProfile = [PSCustomObject]@{
+                name        = $profileName
+                commandline = "pwsh.exe -NoExit -Command `"menu`""
+                font        = [PSCustomObject]@{ face = "JetBrainsMono NF" }
+                colorScheme = $schemeName
+                useAcrylic  = $true
+                acrylicOpacity = 0.85
+            }
+            $settingsJson.profiles.list += $toolkitProfile
+            Write-Host "[+] Added '$profileName' Profile." -ForegroundColor Green
+        }
 
-    # 4. Add Profile if missing
-    if ($null -eq ($settingsJson.profiles.list | Where-Object { $_.name -eq "PowerShell Toolkit" })) {
-        $settingsJson.profiles.list += $toolkitProfile
-        Write-Host "[+] Added 'PowerShell Toolkit' profile." -ForegroundColor Green
+        # 4. Save with high depth and UTF8 to ensure Terminal reads it correctly
+        $settingsJson | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding utf8
+        Write-Host "[!] Terminal settings updated successfully." -ForegroundColor Green
+    } catch {
+        Write-Host " [!] Error parsing Terminal settings: $($_.Exception.Message)" -ForegroundColor Red
     }
-
-    # 5. Force Save with UTF8 encoding (Windows Terminal prefers this)
-    $settingsJson | ConvertTo-Json -Depth 10 | Set-Content $settingsPath -Encoding utf8
 } else {
     Write-Host " [!] Windows Terminal settings not found." -ForegroundColor Yellow
 }
