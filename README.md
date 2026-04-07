@@ -5,13 +5,25 @@ A modular, "one-click" deployment system designed to standardize a PowerShell 7 
 > [!IMPORTANT]
 > **Requirements:** This script requires **PowerShell 7+** and **Administrator Privileges** for the initial setup.
 
+## 📥 How to Install PowerShell 7+
+
+If you are still using Windows PowerShell 5.1, you must install the modern version first:
+
+* **Option A: Winget (Recommended)**
+    Open a terminal and run:
+    `winget install --id Microsoft.Powershell --source winget`
+* **Option B: Microsoft Store**
+    Search for **"PowerShell"** in the Store and look for the blue icon (not the black one).
+* **Option C: Direct Download**
+    Visit [aka.ms/powershell](https://aka.ms/powershell).
+
 ---
 
 ## ⚡ Instant Installation (Pro Way)
 
 If you have **PowerShell 7** installed, copy and paste this command into an **Administrator** terminal to deploy the entire toolkit automatically:
 
-```
+```powershell
 pwsh -ExecutionPolicy Bypass -Command "iex (New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1')"
 ```
 
@@ -57,6 +69,7 @@ The toolkit injects 8+ professional color schemes into your Windows Terminal. Al
 | **Ubuntu** | ![Ubuntu](images/ubuntu.png) |
 
 </details>
+
 ---
 
 ## 📦 Key Features
@@ -73,26 +86,21 @@ The toolkit no longer relies on hardcoded scripts. It loops through a central re
 * **PSReadLine:** Optimized with `MenuComplete` enabled on the **Tab** key.
 * **Auto-Loader:** Dynamically "dot-sources" every script in your Functions folder on startup.
 
-### 📋 Interactive Menu (`menu`)
-
-A high-visibility dashboard for your daily IT tasks:
-
-* **File Explorer:** View current folder contents with icons.
-* **Function Picker:** Lists and executes all synced scripts by number.
-
 ---
 
 ## 🛠️ Included Functions
 
+### `get_sysinfo`
+
+A high-level hardware dashboard. Displays CPU usage, RAM (Used/Total), GPU detection, OS uptime, and a specialized **Storage Audit** that flags drives over 90% capacity in red.
+
 ### `hash_ls`
 
-A specialized audit tool for security and file integrity.
-
-* **Features:** Displays SHA256 hashes, human-readable file sizes (MB/GB), and file icons for every file in the current directory.
+A specialized audit tool for security and file integrity. Displays SHA256 hashes and human-readable file sizes (MB/GB) for all files in a directory.
 
 ### `mass_rename`
 
-A safe, preview-first renaming tool. Displays a "Before and After" list and requires a `y/n` confirmation before applying changes.
+A safe, preview-first renaming tool. Displays a "Before and After" list and requires confirmation before applying changes.
 
 ### `space_to_dots`
 
