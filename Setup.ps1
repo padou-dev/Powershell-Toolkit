@@ -1,17 +1,20 @@
-#-----[0. DETERMINE POWERSHELL VERSION/WARnING]-----
-# Check for PowerShell 7+
+#-----[0. VERSION & PRE-CHECKS]-----
+$currentVersion = "v1.1.0"
+
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     Write-Host " [!] ERROR: This toolkit requires PowerShell 7+. You are currently running version $($PSVersionTable.PSVersion.Major)." -ForegroundColor Red
     Write-Host " [!] Please install PowerShell 7 from https://aka.ms/powershell and try again." -ForegroundColor Yellow
     exit
 }
+
 # --- [1. DYNAMIC PATHS] ---
-# $HOME ensures portability for any user on the team
 $baseDir = Join-Path $HOME "Documents\PowerShell\Scripts"
 $funcDir = Join-Path $baseDir "Functions"
 $menuScriptPath = Join-Path $baseDir "Menu.ps1"
+$baseUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Functions/"
+$setupUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1"
 
-Write-Host "`n--- Starting Master Environment Setup ---" -ForegroundColor Cyan
+Write-Host "`n--- Starting Master Environment Setup ($currentVersion) ---" -ForegroundColor Cyan
 
 # --- [2. Administrator Check] ---
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
@@ -20,63 +23,49 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
     return
 }
 
-# --- [3. Dependency Check & Visual Requirements] ---
+# --- [3. PRE-FLIGHT INTERNET CHECK] ---
+Write-Host "[*] Verifying Cloud Connection..." -ForegroundColor Gray
+if (-not (Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet)) {
+    Write-Host " [!] ERROR: No internet connection detected. Setup/Sync aborted." -ForegroundColor Red
+    return
+}
+
+# --- [4. Dependency Check] ---
 if (!(Get-Module -ListAvailable Terminal-Icons)) {
     Write-Host "[!] Terminal-Icons not found. Installing..." -ForegroundColor Yellow
     Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -AllowClobber
 }
 
-Write-Host "`n*********************************************************" -ForegroundColor Yellow
-Write-Host " [IMPORTANT] VISUAL SETUP" -ForegroundColor White -BackgroundColor Red
-Write-Host " 1. Download/Install a Nerd Font from: nerdfonts.com" -ForegroundColor Gray
-Write-Host " 2. In Terminal Settings, set Font Face to that Nerd Font." -ForegroundColor Gray
-Write-Host "*********************************************************`n" -ForegroundColor Yellow
-Pause
+# --- [5. Function Sync Logic] ---
+if (!(Test-Path $funcDir)) { New-Item -Path $funcDir -ItemType Directory -Force }
 
-# --- [4. Folder & Function Creation] ---
-if (!(Test-Path $funcDir)) { 
-    New-Item -Path $funcDir -ItemType Directory -Force 
-}
+# Updated list including your new sysinfo tool
+$functionNames = @("mass_rename.ps1", "space_to_dots.ps1", "hash_ls.ps1", "get_sysinfo.ps1")
 
-# Define and create Function 1: mass_rename
-$massRenameContent = @"
-function mass_rename {
-    `$oldText = Read-Host "Enter the part of the filename you want to rename"
-    `$newText = Read-Host "Enter what you want to rename it to"
-    if ([string]::IsNullOrWhiteSpace(`$oldText)) { return }
-    `$files = Get-ChildItem -File | Where-Object { `$_.Name -like "*`$oldText*" }
-    if (-not `$files) { Write-Host "No matching files found." -ForegroundColor Yellow; return }
-    Write-Host "`nPreview:" -ForegroundColor Cyan
-    foreach (`$file in `$files) {
-        `$newName = `$file.Name -replace [regex]::Escape(`$oldText), `$newText
-        Write-Host "`$(`$file.Name) → `$newName"
+foreach ($funcName in $functionNames) {
+    $destPath = Join-Path $funcDir $funcName
+    Write-Host "[*] Syncing $funcName from GitHub..." -ForegroundColor Gray
+    
+    try {
+        Invoke-WebRequest -Uri ($baseUrl + $funcName) -OutFile $destPath -ErrorAction Stop
+    } catch {
+        Write-Host " [!] Failed to sync $funcName. Skipping..." -ForegroundColor Yellow
+        if (Test-Path $destPath) { Remove-Item $destPath } # Cleanup partials
     }
-    if ((Read-Host "`nProceed with rename? (y/n)") -ne 'y') { return }
-    `$files | Rename-Item -NewName { `$_.Name -replace [regex]::Escape(`$oldText), `$newText }
 }
-"@
+Write-Host "[+] Toolkit functions synchronized in $funcDir" -ForegroundColor Green
 
-# Define and create Function 2: space_to_dots
-$spaceToDotsContent = @"
-function space_to_dots {
-    Get-ChildItem | Rename-Item -NewName { `$_.Name -replace " ", "." }
-    Write-Host "Spaces converted to dots." -ForegroundColor Green
-}
-"@
-
-Set-Content -Path (Join-Path $funcDir "mass_rename.ps1") -Value $massRenameContent -Force
-Set-Content -Path (Join-Path $funcDir "space_to_dots.ps1") -Value $spaceToDotsContent -Force
-Write-Host "[+] Toolkit functions generated in $funcDir" -ForegroundColor Green
-
-# --- [5. Generate Menu.ps1] ---
+# --- [6. Generate Menu.ps1] ---
 $menuContent = @"
 `$toolkitPath = "$funcDir"
 `$toolkitScripts = Get-ChildItem -Path `$toolkitPath -Filter *.ps1
-`$repoUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1"
+`$repoUrl = "$setupUrl"
+`$version = "$currentVersion"
 
 Clear-Host
 Write-Host "=========================================" -ForegroundColor Green
-Write-Host " CURRENT FOLDER: `$((Get-Location).Path)" -ForegroundColor Cyan
+Write-Host " TOOLKIT: `$version | USER: `$env:USERNAME" -ForegroundColor Cyan
+Write-Host " CURRENT FOLDER: `$((Get-Location).Path)" -ForegroundColor Gray
 Write-Host "=========================================" -ForegroundColor Green
 
 if (Get-Module -Name Terminal-Icons) {
@@ -86,33 +75,30 @@ if (Get-Module -Name Terminal-Icons) {
 }
 
 Write-Host "=========================================" -ForegroundColor Green
-Write-Host "        AVAILABLE TOOLKIT FUNCTIONS       " -ForegroundColor Cyan
+Write-Host "         AVAILABLE FUNCTIONS             " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Green
 
 for (`$i = 0; `$i -lt `$toolkitScripts.Count; `$i++) {
     Write-Host (" [`$(`$i + 1)] " + `$toolkitScripts[`$i].BaseName) -ForegroundColor Yellow
 }
 Write-Host "-----------------------------------------" -ForegroundColor DarkGray
-Write-Host " [U] Update Toolkit from GitHub" -ForegroundColor Cyan
+Write-Host " [U] Update Toolkit (Pre-Flight Sync)" -ForegroundColor Cyan
 Write-Host " [Q] Quit" -ForegroundColor Red
 Write-Host "=========================================" -ForegroundColor Green
 
 `$selection = Read-Host "`nEnter selection"
 
-# --- Handle Update ---
 if (`$selection -eq 'u' -or `$selection -eq 'U') {
-    Write-Host "[*] Downloading latest Setup.ps1..." -ForegroundColor Cyan
-    try {
+    Write-Host "[*] Checking Connectivity..." -ForegroundColor Cyan
+    if (Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet) {
         `$setupPath = Join-Path "$baseDir" "Setup.ps1"
         Invoke-WebRequest -Uri `$repoUrl -OutFile `$setupPath -ErrorAction Stop
-        Write-Host "[+] Download complete. Re-running setup..." -ForegroundColor Green
         & `$setupPath
-        return
-    } catch {
-        Write-Host "[!] Update failed: `$($_.Exception.Message)" -ForegroundColor Red
+    } else {
+        Write-Host "[!] No Internet. Update Aborted." -ForegroundColor Red
         Pause
-        return
     }
+    return
 }
 
 if (`$selection -eq 'q' -or `$selection -eq 'Q') { return }
@@ -125,29 +111,18 @@ if (`$selection -match '^\d+`$' -and [int]`$selection -le `$toolkitScripts.Count
 "@
 Set-Content -Path $menuScriptPath -Value $menuContent -Force
 
-# --- [6. Update Profile] ---
+# --- [7. Update Profile] ---
 $profileContent = @"
 Import-Module -Name Terminal-Icons
 Import-Module PSReadLine
 Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
-
 `$functionsPath = "$funcDir"
-if (Test-Path `$functionsPath) {
-    Get-ChildItem `$functionsPath -Filter *.ps1 | ForEach-Object { . `$_.FullName }
-}
-
+if (Test-Path `$functionsPath) { Get-ChildItem `$functionsPath -Filter *.ps1 | ForEach-Object { . `$_.FullName } }
 Set-Alias -Name menu -Value "$menuScriptPath"
 "@
-
-# Targets the correct $PROFILE for the current pwsh session
 $profileDir = Split-Path $PROFILE
 if (!(Test-Path $profileDir)) { New-Item -Path $profileDir -ItemType Directory -Force }
 Set-Content -Path $PROFILE -Value $profileContent -Force
-
-# --- [7. Post-Installation Instructions] ---
-Write-Host "`n[+++] SETUP COMPLETE!" -ForegroundColor Green
-Write-Host "Please RESTART your PowerShell window to enable the 'menu' command." -ForegroundColor Cyan
-Write-Host "*********************************************************" -ForegroundColor Yellow
 
 # --- [8. INTERACTIVE TERMINAL CUSTOMIZATION] ---
 Write-Host "`n--- Optional: Windows Terminal Customization ---" -ForegroundColor Cyan
@@ -200,3 +175,6 @@ if ($installThemes -eq 'y' -or $applyOpacity -eq 'y') {
 } else {
     Write-Host "[!] Skipping terminal customization." -ForegroundColor Yellow
 }
+
+Write-Host "`n[+++] SETUP COMPLETE! ($currentVersion)" -ForegroundColor Green
+Write-Host "Restart PowerShell to enable the 'menu' command." -ForegroundColor Yellow
