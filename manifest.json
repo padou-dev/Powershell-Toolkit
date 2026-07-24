@@ -1,0 +1,38 @@
+{
+  "name": "Powershell-Toolkit",
+  "version": "1.2.0",
+  "author": "padou-dev",
+  "repo": "https://github.com/padou-dev/Powershell-Toolkit",
+
+  "_comment_functions": "Each entry maps to Functions/<file>. 'command' is the function name that file defines. Add a new script here and re-run Setup.ps1 — no installer edits needed.",
+
+  "functions": [
+    {
+      "file": "get_sysinfo.ps1",
+      "command": "get_sysinfo",
+      "description": "Hardware dashboard: CPU, RAM, GPU, storage, uptime"
+    },
+    {
+      "file": "hash_ls.ps1",
+      "command": "hash_ls",
+      "description": "List files in the current directory with SHA256 hashes and sizes"
+    },
+    {
+      "file": "mass_rename.ps1",
+      "command": "mass_rename",
+      "description": "Bulk find/replace in filenames, with preview and confirmation"
+    },
+    {
+      "file": "space_to_dots.ps1",
+      "command": "space_to_dots",
+      "description": "Replace spaces with dots in filenames, with preview and confirmation"
+    }
+  ],
+
+  "_comment_modules": "PowerShell Gallery modules installed with -Scope CurrentUser (no admin needed). Remove any you don't use.",
+
+  "modules": [
+    "Terminal-Icons",
+    "PSReadLine"
+  ]
+}

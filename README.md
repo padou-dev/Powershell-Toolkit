@@ -1,128 +1,94 @@
-# 🛠️ PowerShell Core IT Toolkit
+# Powershell-Toolkit
 
-A modular, "one-click" deployment system designed to standardize a PowerShell 7 environment across multiple machines. This toolkit automatically builds your local environment by syncing custom functions, visual enhancements, and an interactive menu directly from GitHub.
+A small, self-updating collection of PowerShell functions I use daily in IT support and homelab work, with a one-command installer that stays out of your way: everything installs in **user scope** (no admin rights), your existing profile is **never overwritten**, and every file the installer touches is **backed up first**.
 
-> [!IMPORTANT]
-> **Requirements:** This script requires **PowerShell 7+** and **Administrator Privileges** for the initial setup.
+## Requirements
 
-## 📥 How to Install PowerShell 7+
+- PowerShell **7.0+** ([install](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows)) — Windows PowerShell 5.1 is not supported
+- Windows 10/11
+- Optional: [Windows Terminal](https://aka.ms/terminal) and a [Nerd Font](https://www.nerdfonts.com/) for the full experience
 
-If you are still using Windows PowerShell 5.1, you must install the modern version first:
+## Installation
 
-* **Option A: Winget (Recommended)**
-    Open a terminal and run:
-    `winget install --id Microsoft.Powershell --source winget`
-* **Option B: Microsoft Store**
-    Search for **"PowerShell"** in the Store and look for the blue icon (not the black one).
-* **Option C: Direct Download**
-    Visit [aka.ms/powershell](https://aka.ms/powershell).
-
----
-
-## ⚡ Instant Installation (Pro Way)
-
-If you have **PowerShell 7** installed, copy and paste this command into an **Administrator** terminal to deploy the entire toolkit automatically:
+### Recommended: clone, read, run
 
 ```powershell
-pwsh -ExecutionPolicy Bypass -Command "iex (New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1')"
+git clone https://github.com/padou-dev/Powershell-Toolkit.git
+cd .\Powershell-Toolkit\
+.\Setup.ps1
 ```
 
----
+The installer detects it's running from a local clone and installs from your local files.
 
-## 🚀 Manual Quick Start
+> [!NOTE]
+> You're encouraged to read `Setup.ps1` before running it — it's short, commented, and you should never run scripts from the internet you haven't looked at. That's the whole reason cloning is the recommended path.
+
+### Quick install
+
+```powershell
+irm https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1 | iex
+```
 
 > [!WARNING]
-> **Do not "Right-Click > Run with PowerShell"**. This will attempt to run the script in Windows PowerShell 5.1, which is incompatible with this toolkit.
+> This executes remote code directly. Convenient, but only use it if you trust this repo — prefer the clone method above.
 
-1. **Open PowerShell 7+** as an Administrator.
-2. **Execute the setup:** Run `.\Setup.ps1` from your local repository.
-3. **Automatic Sync:** The script will automatically create your `Functions` directory and download all toolkit modules from GitHub.
-4. **Restart your Terminal** to load the new `$PROFILE`.
-5. Type `menu` to launch the interactive toolkit.
+## What gets installed
 
----
+| Item | Location | Notes |
+|---|---|---|
+| Function scripts | `<ProfileDir>\Toolkit\Functions\` | Dot-sourced at shell startup |
+| Menu | `<ProfileDir>\Toolkit\Menu.ps1` | Launched with the `toolkit` command |
+| Profile block | Inside `$PROFILE`, between markers | Everything outside the markers is untouched; a timestamped backup is made on every change |
+| Modules | CurrentUser scope | See `manifest.json` |
+| Terminal schemes | Windows Terminal `settings.json` | 8 color schemes from `terminal_schemes.json`; original settings backed up first (skip with `-SkipTerminal`) |
 
-## 🎨 Theme Gallery
+`<ProfileDir>` is wherever your `$PROFILE` lives — the installer follows it, so OneDrive-redirected Documents folders work correctly.
 
-The toolkit injects 8+ professional color schemes into your Windows Terminal. All screenshots feature the interactive `menu` with **Terminal-Icons** and a Nerd Font.
+## Usage
 
-<table align="center">
-  <tr>
-    <td align="center"><b>Catppuccin Mocha</b><br><img src="images/catppuccin_mocha.png" width="400px"></td>
-    <td align="center"><b>CyberPunk 2077</b><br><img src="images/cyberpunk_2077.png" width="400px"></td>
-  </tr>
-  <tr>
-    <td align="center"><b>Dracula+</b><br><img src="images/dracula_plus.png" width="400px"></td>
-    <td align="center"><b>GitHub Dark</b><br><img src="images/github_dark.png" width="400px"></td>
-  </tr>
-</table>
+Open a new PowerShell window, then:
 
-<details>
-<summary><b>📸 Click to see more themes...</b></summary>
-<br>
+```powershell
+toolkit          # interactive menu
+Get-SysInfo      # or call any function directly
+```
 
-| Theme Name | Preview |
-| :--- | :--- |
-| **Apple System Colors** | ![Apple](images/apple_systems_colors.png) |
-| **Flatland** | ![Flatland](images/flatland.png) |
-| **Obsidian** | ![Obsidian](images/obsidian.png) |
-| **Ubuntu** | ![Ubuntu](images/ubuntu.png) |
+## Adding your own function
 
-</details>
+1. Drop `my_function.ps1` into `Functions/` (the file should define one `Verb-Noun` function)
+2. Add an entry to `manifest.json`:
 
----
+```json
+{ "file": "my_function.ps1", "command": "Get-MyThing", "description": "What it does" }
+```
 
-## 📦 Key Features
+3. Re-run `.\Setup.ps1`
 
-### 🔄 Dynamic Function Sync
+The manifest is the single registry — the installer, the menu, and the update mechanism all read from it.
 
-The toolkit no longer relies on hardcoded scripts. It loops through a central registry on GitHub and downloads individual `.ps1` files into your local `Functions` folder. 
+## Updating
 
-* **[U] Update:** Use the 'U' key in the menu to pull the latest logic, new functions, and theme updates instantly.
+Run `toolkit` and choose `U`, or re-run the installer.
 
-### 🛠️ Environment Standardization
+## Uninstall
 
-* **Terminal-Icons:** Adds file-type icons to your directory listings.
-* **PSReadLine:** Optimized with `MenuComplete` enabled on the **Tab** key.
-* **Auto-Loader:** Dynamically "dot-sources" every script in your Functions folder on startup.
+```powershell
+.\Setup.ps1 -Uninstall
+```
 
----
+Removes the toolkit directory and the managed profile block. Backups are deliberately left behind.
 
-## 🛠️ Included Functions
+## Troubleshooting
 
-### `get_sysinfo`
+**`toolkit` isn't recognized after installing** — the profile only loads when a shell starts. Open a new window. If it still fails, check `$PROFILE` contains the `# >>> powershell-toolkit start >>>` block.
 
-A high-level hardware dashboard. Displays CPU usage, RAM (Used/Total), GPU detection, OS uptime, and a specialized **Storage Audit** that flags drives over 90% capacity in red.
+**Scripts are blocked from running** — your execution policy is restricting local scripts. Fix for your user only (no admin needed):
+`Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
-### `hash_ls`
+**Functions load but Terminal looks wrong** — the color scheme is added but not activated. Windows Terminal → Settings → your profile → Appearance → select the `Toolkit` scheme.
 
-A specialized audit tool for security and file integrity. Displays SHA256 hashes and human-readable file sizes (MB/GB) for all files in a directory.
+**Something broke my profile** — restore any timestamped backup: `Copy-Item "$PROFILE.bak-<timestamp>" $PROFILE`
 
-### `mass_rename`
+## License
 
-A safe, preview-first renaming tool. Displays a "Before and After" list and requires confirmation before applying changes.
-
-### `space_to_dots`
-
-Replaces all spaces in filenames within the current directory with periods (`.`) for terminal-friendly naming.
-
----
-
-## 🎨 Visual Requirements
-
-To see the icons correctly, you must use a **Nerd Font**.
-
-1. Download a font (e.g., *JetBrains Mono Nerd Font*) from [nerdfonts.com](https://www.nerdfonts.com).
-2. Install it on Windows.
-3. Open Terminal Settings > **Appearance** > Set **Font face** to your Nerd Font.
-
----
-
-## 📂 Local File Structure
-
-* `Documents\PowerShell\Scripts\Menu.ps1` - The interactive manager.
-* `Documents\PowerShell\Scripts\Functions\` - Your local library of synced scripts.
-
-### ⚖️ License
-
-Distributed under the MIT License. See LICENSE for more information.
+[MIT](LICENSE)

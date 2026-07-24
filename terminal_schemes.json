@@ -1,0 +1,66 @@
+[
+  {
+    "name": "Apple System Colors",
+    "background": "#1E1E1E", "foreground": "#FFFFFF", "cursorColor": "#98989D", "selectionBackground": "#3F638B",
+    "black": "#1A1A1A", "red": "#CC372E", "green": "#26A439", "yellow": "#CDAC08",
+    "blue": "#0869CB", "purple": "#9647BF", "cyan": "#479EC2", "white": "#98989D",
+    "brightBlack": "#464646", "brightRed": "#FF453A", "brightGreen": "#32D74B", "brightYellow": "#FFD60A",
+    "brightBlue": "#0A84FF", "brightPurple": "#BF5AF2", "brightCyan": "#76D6FF", "brightWhite": "#FFFFFF"
+  },
+  {
+    "name": "Catppuccin Mocha",
+    "background": "#1E1E2E", "foreground": "#CDD6F4", "cursorColor": "#F5E0DC", "selectionBackground": "#585B70",
+    "black": "#45475A", "red": "#F38BA8", "green": "#A6E3A1", "yellow": "#F9E2AF",
+    "blue": "#89B4FA", "purple": "#F5C2E7", "cyan": "#94E2D5", "white": "#BAC2DE",
+    "brightBlack": "#585B70", "brightRed": "#F38BA8", "brightGreen": "#A6E3A1", "brightYellow": "#F9E2AF",
+    "brightBlue": "#89B4FA", "brightPurple": "#F5C2E7", "brightCyan": "#94E2D5", "brightWhite": "#A6ADC8"
+  },
+  {
+    "name": "CyberPunk2077",
+    "background": "#272932", "foreground": "#E455AE", "cursorColor": "#FDF500", "selectionBackground": "#742D8B",
+    "black": "#272932", "red": "#710000", "green": "#1AC5B0", "yellow": "#FDF500",
+    "blue": "#9381FF", "purple": "#742D8B", "cyan": "#00D0DB", "white": "#D1C5C0",
+    "brightBlack": "#7B8097", "brightRed": "#C71515", "brightGreen": "#40FFE9", "brightYellow": "#FFF955",
+    "brightBlue": "#37EBF3", "brightPurple": "#CB1DCD", "brightCyan": "#37EBF3", "brightWhite": "#C1DEFF"
+  },
+  {
+    "name": "Dracula+",
+    "background": "#212121", "foreground": "#F8F8F2", "cursorColor": "#ECEFF4", "selectionBackground": "#F8F8F2",
+    "black": "#21222C", "red": "#FF5555", "green": "#50FA7B", "yellow": "#FFCB6B",
+    "blue": "#82AAFF", "purple": "#C792EA", "cyan": "#8BE9FD", "white": "#F8F8F2",
+    "brightBlack": "#545454", "brightRed": "#FF6E6E", "brightGreen": "#69FF94", "brightYellow": "#FFCB6B",
+    "brightBlue": "#D6ACFF", "brightPurple": "#FF92DF", "brightCyan": "#A4FFFF", "brightWhite": "#F8F8F2"
+  },
+  {
+    "name": "Flatland",
+    "background": "#1D1F21", "foreground": "#B8DBEF", "cursorColor": "#708284", "selectionBackground": "#2B2A24",
+    "black": "#1D1D19", "red": "#F18339", "green": "#9FD364", "yellow": "#F4EF6D",
+    "blue": "#5096BE", "purple": "#695ABC", "cyan": "#D63865", "white": "#FFFFFF",
+    "brightBlack": "#1D1D19", "brightRed": "#D22A24", "brightGreen": "#A7D42C", "brightYellow": "#FF8949",
+    "brightBlue": "#61B9D0", "brightPurple": "#695ABC", "brightCyan": "#D63865", "brightWhite": "#FFFFFF"
+  },
+  {
+    "name": "GitHub Dark",
+    "background": "#101216", "foreground": "#8B949E", "cursorColor": "#C9D1D9", "selectionBackground": "#3B5070",
+    "black": "#000000", "red": "#F78166", "green": "#56D364", "yellow": "#E3B341",
+    "blue": "#6CA4F8", "purple": "#DB61A2", "cyan": "#2B7489", "white": "#FFFFFF",
+    "brightBlack": "#4D4D4D", "brightRed": "#F78166", "brightGreen": "#56D364", "brightYellow": "#E3B341",
+    "brightBlue": "#6CA4F8", "brightPurple": "#DB61A2", "brightCyan": "#2B7489", "brightWhite": "#FFFFFF"
+  },
+  {
+    "name": "Hacktober",
+    "background": "#141414", "foreground": "#C9C9C9", "cursorColor": "#C9C9C9", "selectionBackground": "#141414",
+    "black": "#191918", "red": "#B34538", "green": "#587744", "yellow": "#D08949",
+    "blue": "#206EC5", "purple": "#864651", "cyan": "#AC9166", "white": "#F1EEE7",
+    "brightBlack": "#2C2B2A", "brightRed": "#B33323", "brightGreen": "#42824A", "brightYellow": "#C75A22",
+    "brightBlue": "#5389C5", "brightPurple": "#E795A5", "brightCyan": "#EBC587", "brightWhite": "#FFFFFF"
+  },
+  {
+    "name": "Obsidian",
+    "background": "#283033", "foreground": "#CDCDCD", "cursorColor": "#C0CAD0", "selectionBackground": "#3E4C4F",
+    "black": "#000000", "red": "#A60001", "green": "#00BB00", "yellow": "#FECD22",
+    "blue": "#3A9BDB", "purple": "#BB00BB", "cyan": "#00BBBB", "white": "#BBBBBB",
+    "brightBlack": "#555555", "brightRed": "#FF0003", "brightGreen": "#93C863", "brightYellow": "#FEF874",
+    "brightBlue": "#A1D7FF", "brightPurple": "#FF55FF", "brightCyan": "#55FFFF", "brightWhite": "#FFFFFF"
+  }
+]

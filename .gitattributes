@@ -1,0 +1,3 @@
+# Normalize line endings: everything stored as LF in the repo,
+# checked out as-is (LF) — modern Windows tooling handles LF fine.
+* text=auto eol=lf

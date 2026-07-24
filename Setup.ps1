@@ -1,180 +1,240 @@
-#-----[0. VERSION & PRE-CHECKS]-----
-$currentVersion = "v1.1.0"
+#Requires -Version 7.0
+<#
+.SYNOPSIS
+    Installer for the Powershell-Toolkit (github.com/padou-dev/Powershell-Toolkit).
 
-if ($PSVersionTable.PSVersion.Major -lt 7) {
-    Write-Host " [!] ERROR: This toolkit requires PowerShell 7+. You are currently running version $($PSVersionTable.PSVersion.Major)." -ForegroundColor Red
-    Write-Host " [!] Please install PowerShell 7 from https://aka.ms/powershell and try again." -ForegroundColor Yellow
-    exit
+.DESCRIPTION
+    Installs the toolkit entirely in USER scope — no administrator rights needed.
+    - Reads manifest.json (the single registry of functions and modules)
+    - Copies/downloads function scripts into <ProfileDir>\Toolkit\Functions
+    - Manages a clearly-marked block in your PowerShell profile (never
+      overwrites anything outside the markers, backs up before every change)
+    - Optionally injects a Windows Terminal color scheme (backed up first)
+
+    Source auto-detection: if manifest.json sits next to this script (i.e. you
+    cloned the repo), files are copied locally — ideal for testing changes
+    before pushing. Otherwise everything is downloaded from GitHub.
+
+.PARAMETER Uninstall
+    Removes the managed profile block and the Toolkit directory. Backups and
+    Windows Terminal changes are left in place (paths are printed).
+
+.PARAMETER SkipTerminal
+    Skip the Windows Terminal color scheme step entirely.
+
+.EXAMPLE
+    .\Setup.ps1              # install / update
+    .\Setup.ps1 -Uninstall   # clean removal
+#>
+[CmdletBinding()]
+param(
+    [switch]$Uninstall,
+    [switch]$SkipTerminal
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+# ----------------------------------------------------------------------------
+# Constants
+# ----------------------------------------------------------------------------
+$RepoRaw   = 'https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main'
+$StartMark = '# >>> powershell-toolkit start >>>'
+$EndMark   = '# <<< powershell-toolkit end <<<'
+
+# WHY derive from $PROFILE instead of "$HOME\Documents": OneDrive folder
+# redirection moves Documents (and the profile with it). $PROFILE is always
+# the truth, so everything we install lives next to it.
+$ProfileDir = Split-Path -Parent $PROFILE
+$ToolkitDir = Join-Path $ProfileDir 'Toolkit'
+$FuncDir    = Join-Path $ToolkitDir 'Functions'
+
+function Write-Step { param([string]$Msg) Write-Host "==> $Msg" -ForegroundColor Cyan }
+function Write-Ok   { param([string]$Msg) Write-Host "    $Msg" -ForegroundColor Green }
+
+# ----------------------------------------------------------------------------
+# Profile block management
+# ----------------------------------------------------------------------------
+function Get-ManagedBlock {
+    # Everything the profile needs, fenced by markers so we can update or
+    # remove it later without touching the user's own profile content.
+    @"
+$StartMark
+# Managed by Powershell-Toolkit Setup.ps1 — edits inside this block are
+# overwritten on every install/update. Put personal config outside it.
+`$toolkitRoot = Join-Path (Split-Path -Parent `$PROFILE) 'Toolkit'
+if (Test-Path (Join-Path `$toolkitRoot 'Functions')) {
+    Get-ChildItem -Path (Join-Path `$toolkitRoot 'Functions') -Filter '*.ps1' |
+        ForEach-Object { . `$_.FullName }
+}
+function toolkit { & (Join-Path `$toolkitRoot 'Menu.ps1') }
+$EndMark
+"@
 }
 
-# --- [1. DYNAMIC PATHS] ---
-$baseDir = Join-Path $HOME "Documents\PowerShell\Scripts"
-$funcDir = Join-Path $baseDir "Functions"
-$menuScriptPath = Join-Path $baseDir "Menu.ps1"
-$baseUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Functions/"
-$setupUrl = "https://raw.githubusercontent.com/padou-dev/Powershell-Toolkit/main/Setup.ps1"
-
-Write-Host "`n--- Starting Master Environment Setup ($currentVersion) ---" -ForegroundColor Cyan
-
-# --- [2. Administrator Check] ---
-$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Error "Please run this script as an Administrator to ensure modules can be installed."
-    return
+function Remove-ManagedBlock {
+    param([string]$Content)
+    # (?s) = singleline mode so .* spans newlines. \r?\n? swallows the blank
+    # line the block leaves behind, keeping repeated runs from stacking gaps.
+    $pattern = "(?s)\r?\n?" + [regex]::Escape($StartMark) + ".*?" + [regex]::Escape($EndMark) + "\r?\n?"
+    return ($Content -replace $pattern, "`n").TrimEnd()
 }
 
-# --- [3. PRE-FLIGHT INTERNET CHECK] ---
-Write-Host "[*] Verifying Cloud Connection..." -ForegroundColor Gray
-if (-not (Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet)) {
-    Write-Host " [!] ERROR: No internet connection detected. Setup/Sync aborted." -ForegroundColor Red
-    return
-}
+function Update-Profile {
+    param([switch]$Remove)
 
-# --- [4. Dependency Check] ---
-if (!(Get-Module -ListAvailable Terminal-Icons)) {
-    Write-Host "[!] Terminal-Icons not found. Installing..." -ForegroundColor Yellow
-    Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -AllowClobber
-}
+    $existing = if (Test-Path $PROFILE) { Get-Content $PROFILE -Raw } else { '' }
 
-# --- [5. Function Sync Logic] ---
-if (!(Test-Path $funcDir)) { New-Item -Path $funcDir -ItemType Directory -Force }
-
-# Updated list including your new sysinfo tool
-$functionNames = @("mass_rename.ps1", "space_to_dots.ps1", "hash_ls.ps1", "get_sysinfo.ps1")
-
-foreach ($funcName in $functionNames) {
-    $destPath = Join-Path $funcDir $funcName
-    Write-Host "[*] Syncing $funcName from GitHub..." -ForegroundColor Gray
-    
-    try {
-        Invoke-WebRequest -Uri ($baseUrl + $funcName) -OutFile $destPath -ErrorAction Stop
-    } catch {
-        Write-Host " [!] Failed to sync $funcName. Skipping..." -ForegroundColor Yellow
-        if (Test-Path $destPath) { Remove-Item $destPath } # Cleanup partials
+    # WHY back up first: a profile is personal, hand-tuned config. Even though
+    # the marker approach is non-destructive by design, a timestamped backup
+    # makes every change reversible if the regex ever meets an edge case.
+    if ($existing) {
+        $bak = "$PROFILE.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        Copy-Item -Path $PROFILE -Destination $bak
+        Write-Ok "Profile backed up to $bak"
     }
+
+    $cleaned = Remove-ManagedBlock -Content $existing
+    $newContent = if ($Remove) { $cleaned } else { ($cleaned, (Get-ManagedBlock)) -join "`n`n" }
+
+    New-Item -ItemType Directory -Path $ProfileDir -Force | Out-Null
+    Set-Content -Path $PROFILE -Value $newContent.TrimStart()
+    Write-Ok $(if ($Remove) { 'Managed block removed from profile' } else { 'Managed block written to profile' })
 }
-Write-Host "[+] Toolkit functions synchronized in $funcDir" -ForegroundColor Green
 
-# --- [6. Generate Menu.ps1] ---
-$menuContent = @"
-`$toolkitPath = "$funcDir"
-`$toolkitScripts = Get-ChildItem -Path `$toolkitPath -Filter *.ps1
-`$repoUrl = "$setupUrl"
-`$version = "$currentVersion"
+# ----------------------------------------------------------------------------
+# Uninstall
+# ----------------------------------------------------------------------------
+if ($Uninstall) {
+    Write-Step 'Uninstalling Powershell-Toolkit'
+    Update-Profile -Remove
+    if (Test-Path $ToolkitDir) {
+        Remove-Item -Path $ToolkitDir -Recurse -Force
+        Write-Ok "Removed $ToolkitDir"
+    }
+    Write-Host "`nDone. Profile backups (*.bak-*) and any Windows Terminal backups were kept." -ForegroundColor Yellow
+    return
+}
 
-Clear-Host
-Write-Host "=========================================" -ForegroundColor Green
-Write-Host " TOOLKIT: `$version | USER: `$env:USERNAME" -ForegroundColor Cyan
-Write-Host " CURRENT FOLDER: `$((Get-Location).Path)" -ForegroundColor Gray
-Write-Host "=========================================" -ForegroundColor Green
-
-if (Get-Module -Name Terminal-Icons) {
-    Get-ChildItem | Format-TerminalIcons | Out-String | Write-Host
+# ----------------------------------------------------------------------------
+# Locate source: local clone vs GitHub
+# ----------------------------------------------------------------------------
+$LocalSource = $null
+if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'manifest.json'))) {
+    $LocalSource = $PSScriptRoot
+    Write-Step "Local repo detected at $LocalSource — installing from local files"
 } else {
-    Get-ChildItem | Format-Table -AutoSize | Out-String | Write-Host
+    Write-Step 'Installing from GitHub'
 }
 
-Write-Host "=========================================" -ForegroundColor Green
-Write-Host "         AVAILABLE FUNCTIONS             " -ForegroundColor Cyan
-Write-Host "=========================================" -ForegroundColor Green
+function Get-ToolkitFile {
+    # One function, two transports. Downloads go to a temp file first and are
+    # moved into place only on success, so a dropped connection can never
+    # leave a half-written script that the profile would later dot-source.
+    param([string]$RelativePath, [string]$Destination)
 
-for (`$i = 0; `$i -lt `$toolkitScripts.Count; `$i++) {
-    Write-Host (" [`$(`$i + 1)] " + `$toolkitScripts[`$i].BaseName) -ForegroundColor Yellow
-}
-Write-Host "-----------------------------------------" -ForegroundColor DarkGray
-Write-Host " [U] Update Toolkit (Pre-Flight Sync)" -ForegroundColor Cyan
-Write-Host " [Q] Quit" -ForegroundColor Red
-Write-Host "=========================================" -ForegroundColor Green
-
-`$selection = Read-Host "`nEnter selection"
-
-if (`$selection -eq 'u' -or `$selection -eq 'U') {
-    Write-Host "[*] Checking Connectivity..." -ForegroundColor Cyan
-    if (Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet) {
-        `$setupPath = Join-Path "$baseDir" "Setup.ps1"
-        Invoke-WebRequest -Uri `$repoUrl -OutFile `$setupPath -ErrorAction Stop
-        & `$setupPath
+    if ($LocalSource) {
+        Copy-Item -Path (Join-Path $LocalSource $RelativePath) -Destination $Destination -Force
     } else {
-        Write-Host "[!] No Internet. Update Aborted." -ForegroundColor Red
-        Pause
+        $tmp = [System.IO.Path]::GetTempFileName()
+        try {
+            Invoke-WebRequest -Uri "$RepoRaw/$($RelativePath -replace '\\','/')" -OutFile $tmp
+            Move-Item -Path $tmp -Destination $Destination -Force
+        } catch {
+            Remove-Item -Path $tmp -ErrorAction SilentlyContinue
+            throw "Failed to fetch '$RelativePath': $($_.Exception.Message)"
+        }
     }
-    return
 }
 
-if (`$selection -eq 'q' -or `$selection -eq 'Q') { return }
+# ----------------------------------------------------------------------------
+# Install
+# ----------------------------------------------------------------------------
+New-Item -ItemType Directory -Path $FuncDir -Force | Out-Null
 
-if (`$selection -match '^\d+`$' -and [int]`$selection -le `$toolkitScripts.Count) {
-    `$selectedFile = `$toolkitScripts[[int]`$selection - 1]
-    . `$selectedFile.FullName
-    & `$selectedFile.BaseName
+Write-Step 'Fetching manifest'
+Get-ToolkitFile -RelativePath 'manifest.json' -Destination (Join-Path $ToolkitDir 'manifest.json')
+$manifest = Get-Content (Join-Path $ToolkitDir 'manifest.json') -Raw | ConvertFrom-Json
+Write-Ok "Manifest v$($manifest.version) — $($manifest.functions.Count) function(s)"
+
+Write-Step 'Installing function scripts'
+foreach ($fn in $manifest.functions) {
+    Get-ToolkitFile -RelativePath (Join-Path 'Functions' $fn.file) -Destination (Join-Path $FuncDir $fn.file)
+    Write-Ok "$($fn.file)  ->  $($fn.command)"
 }
-"@
-Set-Content -Path $menuScriptPath -Value $menuContent -Force
 
-# --- [7. Update Profile] ---
-$profileContent = @"
-Import-Module -Name Terminal-Icons
-Import-Module PSReadLine
-Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
-`$functionsPath = "$funcDir"
-if (Test-Path `$functionsPath) { Get-ChildItem `$functionsPath -Filter *.ps1 | ForEach-Object { . `$_.FullName } }
-Set-Alias -Name menu -Value "$menuScriptPath"
-"@
-$profileDir = Split-Path $PROFILE
-if (!(Test-Path $profileDir)) { New-Item -Path $profileDir -ItemType Directory -Force }
-Set-Content -Path $PROFILE -Value $profileContent -Force
+Write-Step 'Installing menu'
+Get-ToolkitFile -RelativePath 'Menu.ps1' -Destination (Join-Path $ToolkitDir 'Menu.ps1')
 
-# --- [8. INTERACTIVE TERMINAL CUSTOMIZATION] ---
-Write-Host "`n--- Optional: Windows Terminal Customization ---" -ForegroundColor Cyan
-$installThemes = Read-Host "Would you like to install the custom color schemes (Catppuccin, CyberPunk, etc.)? (y/n)"
-$applyOpacity = Read-Host "Would you like to apply 92% opacity to your terminal profiles? (y/n)"
+# WHY -Scope CurrentUser: installs into the user's module path, which needs no
+# elevation. This is the reason the whole installer can run without admin.
+Write-Step 'Checking PowerShell modules'
+foreach ($mod in $manifest.modules) {
+    if (Get-Module -ListAvailable -Name $mod) {
+        Write-Ok "$mod already installed"
+    } else {
+        Install-Module -Name $mod -Scope CurrentUser -Force
+        Write-Ok "$mod installed (CurrentUser scope)"
+    }
+}
 
-if ($installThemes -eq 'y' -or $applyOpacity -eq 'y') {
-    $terminalPath = Join-Path $env:LOCALAPPDATA "Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
+Write-Step 'Updating PowerShell profile'
+Update-Profile
 
-    if (Test-Path $terminalPath) {
-        # Create a backup before modifying JSON
-        Copy-Item $terminalPath "$terminalPath.bak" -Force
-        $settings = Get-Content $terminalPath -Raw | ConvertFrom-Json
+# ----------------------------------------------------------------------------
+# Windows Terminal color scheme (optional)
+# ----------------------------------------------------------------------------
+if (-not $SkipTerminal) {
+    $wtSettings = Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json'
+    if (Test-Path $wtSettings) {
+        Write-Step 'Applying Windows Terminal color schemes'
 
-        # --- Handle Themes ---
-        if ($installThemes -eq 'y') {
-            Write-Host "[*] Injecting Color Schemes..." -ForegroundColor Gray
-            $mySchemes = @(
-                @{ name = "Apple System Colors"; background = "#1E1E1E"; foreground = "#FFFFFF"; black = "#1A1A1A"; blue = "#0869CB"; brightBlack = "#464646"; brightBlue = "#0A84FF"; brightCyan = "#76D6FF"; brightGreen = "#32D74B"; brightPurple = "#BF5AF2"; brightRed = "#FF453A"; brightWhite = "#FFFFFF"; brightYellow = "#FFD60A"; cursorColor = "#98989D"; cyan = "#479EC2"; green = "#26A439"; purple = "#9647BF"; red = "#CC372E"; selectionBackground = "#3F638B"; white = "#98989D"; yellow = "#CDAC08" },
-                @{ name = "Catppuccin Mocha"; background = "#1E1E2E"; foreground = "#CDD6F4"; black = "#45475A"; blue = "#89B4FA"; brightBlack = "#585B70"; brightBlue = "#89B4FA"; brightCyan = "#94E2D5"; brightGreen = "#A6E3A1"; brightPurple = "#F5C2E7"; brightRed = "#F38BA8"; brightWhite = "#A6ADC8"; brightYellow = "#F9E2AF"; cursorColor = "#F5E0DC"; cyan = "#94E2D5"; green = "#A6E3A1"; purple = "#F5C2E7"; red = "#F38BA8"; selectionBackground = "#585B70"; white = "#BAC2DE"; yellow = "#F9E2AF" },
-                @{ name = "CyberPunk2077"; background = "#272932"; foreground = "#E455AE"; black = "#272932"; blue = "#9381FF"; brightBlack = "#7B8097"; brightBlue = "#37EBF3"; brightCyan = "#37EBF3"; brightGreen = "#40FFE9"; brightPurple = "#CB1DCD"; brightRed = "#C71515"; brightWhite = "#C1DEFF"; brightYellow = "#FFF955"; cursorColor = "#FDF500"; cyan = "#00D0DB"; green = "#1AC5B0"; purple = "#742D8B"; red = "#710000"; selectionBackground = "#742D8B"; white = "#D1C5C0"; yellow = "#FDF500" },
-                @{ name = "Dracula+"; background = "#212121"; foreground = "#F8F8F2"; black = "#21222C"; blue = "#82AAFF"; brightBlack = "#545454"; brightBlue = "#D6ACFF"; brightCyan = "#A4FFFF"; brightGreen = "#69FF94"; brightPurple = "#FF92DF"; brightRed = "#FF6E6E"; brightWhite = "#F8F8F2"; brightYellow = "#FFCB6B"; cursorColor = "#ECEFF4"; cyan = "#8BE9FD"; green = "#50FA7B"; purple = "#C792EA"; red = "#FF5555"; selectionBackground = "#F8F8F2"; white = "#F8F8F2"; yellow = "#FFCB6B" },
-                @{ name = "Flatland"; background = "#1D1F21"; foreground = "#B8DBEF"; black = "#1D1D19"; blue = "#5096BE"; brightBlack = "#1D1D19"; brightBlue = "#61B9D0"; brightCyan = "#D63865"; brightGreen = "#A7D42C"; brightPurple = "#695ABC"; brightRed = "#D22A24"; brightWhite = "#FFFFFF"; brightYellow = "#FF8949"; cursorColor = "#708284"; cyan = "#D63865"; green = "#9FD364"; purple = "#695ABC"; red = "#F18339"; selectionBackground = "#2B2A24"; white = "#FFFFFF"; yellow = "#F4EF6D" },
-                @{ name = "GitHub Dark"; background = "#101216"; foreground = "#8B949E"; black = "#000000"; blue = "#6CA4F8"; brightBlack = "#4D4D4D"; brightBlue = "#6CA4F8"; brightCyan = "#2B7489"; brightGreen = "#56D364"; brightPurple = "#DB61A2"; brightRed = "#F78166"; brightWhite = "#FFFFFF"; brightYellow = "#E3B341"; cursorColor = "#C9D1D9"; cyan = "#2B7489"; green = "#56D364"; purple = "#DB61A2"; red = "#F78166"; selectionBackground = "#3B5070"; white = "#FFFFFF"; yellow = "#E3B341" },
-                @{ name = "Hacktober"; background = "#141414"; foreground = "#C9C9C9"; black = "#191918"; blue = "#206EC5"; brightBlack = "#2C2B2A"; brightBlue = "#5389C5"; brightCyan = "#EBC587"; brightGreen = "#42824A"; brightPurple = "#E795A5"; brightRed = "#B33323"; brightWhite = "#FFFFFF"; brightYellow = "#C75A22"; cursorColor = "#C9C9C9"; cyan = "#AC9166"; green = "#587744"; purple = "#864651"; red = "#B34538"; selectionBackground = "#141414"; white = "#F1EEE7"; yellow = "#D08949" },
-                @{ name = "Obsidian"; background = "#283033"; foreground = "#CDCDCD"; black = "#000000"; blue = "#3A9BDB"; brightBlack = "#555555"; brightBlue = "#A1D7FF"; brightCyan = "#55FFFF"; brightGreen = "#93C863"; brightPurple = "#FF55FF"; brightRed = "#FF0003"; brightWhite = "#FFFFFF"; brightYellow = "#FEF874"; cursorColor = "#C0CAD0"; cyan = "#00BBBB"; green = "#00BB00"; purple = "#BB00BB"; red = "#A60001"; selectionBackground = "#3E4C4F"; white = "#BBBBBB"; yellow = "#FECD22" }
-            )
+        # Schemes live in terminal_schemes.json — same principle as the
+        # manifest: schemes are data, so adding one shouldn't mean editing
+        # installer code.
+        Get-ToolkitFile -RelativePath 'terminal_schemes.json' -Destination (Join-Path $ToolkitDir 'terminal_schemes.json')
+        $mySchemes = Get-Content (Join-Path $ToolkitDir 'terminal_schemes.json') -Raw | ConvertFrom-Json
 
-            if ($null -eq $settings.schemes) { $settings.schemes = @() }
-            foreach ($scheme in $mySchemes) {
-                if ($scheme.name -notin $settings.schemes.name) {
-                    $settings.schemes += $scheme
-                    Write-Host "  [+] Added: $($scheme.name)" -ForegroundColor Gray
-                }
+        $bak = "$wtSettings.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        Copy-Item -Path $wtSettings -Destination $bak
+        Write-Ok "settings.json backed up to $bak"
+
+        # NOTE: PS7's ConvertFrom-Json tolerates the comments Windows Terminal
+        # allows in its JSON, but round-tripping strips them. The backup above
+        # is the safety net for that.
+        $settings = Get-Content $wtSettings -Raw | ConvertFrom-Json
+
+        # WHY Add-Member instead of plain assignment: ConvertFrom-Json returns
+        # PSCustomObjects, and assigning to a property that doesn't exist on
+        # one THROWS. On a machine whose settings.json has never defined
+        # 'schemes', `$settings.schemes = @()` crashes. Add-Member creates it.
+        if (-not ($settings.PSObject.Properties.Name -contains 'schemes')) {
+            $settings | Add-Member -NotePropertyName 'schemes' -NotePropertyValue @()
+        }
+
+        $existingNames = @($settings.schemes | ForEach-Object { $_.name })
+        $added = 0
+        foreach ($scheme in $mySchemes) {
+            if ($existingNames -contains $scheme.name) {
+                Write-Ok "'$($scheme.name)' already present — skipped"
+            } else {
+                $settings.schemes = @($settings.schemes) + $scheme
+                $added++
+                Write-Ok "'$($scheme.name)' added"
             }
         }
 
-        # --- Handle Opacity ---
-        if ($applyOpacity -eq 'y') {
-            Write-Host "[*] Applying 92% Opacity..." -ForegroundColor Gray
-            if ($null -eq $settings.profiles.defaults) { $settings.profiles.defaults = @{} }
-            $settings.profiles.defaults.opacity = 92
-            $settings.profiles.defaults.useAcrylic = $false
+        # WHY write only when something changed: no reason to rewrite (and
+        # strip comments from) a settings file we didn't modify.
+        if ($added -gt 0) {
+            $settings | ConvertTo-Json -Depth 32 | Set-Content -Path $wtSettings
+            Write-Ok "$added scheme(s) written — pick one under Terminal Settings > Appearance"
         }
-
-        # Save changes
-        $settings | ConvertTo-Json -Depth 10 | Set-Content $terminalPath -Encoding utf8
-        Write-Host "[+] Terminal settings updated." -ForegroundColor Green
+    } else {
+        Write-Ok 'Windows Terminal not found — skipping scheme'
     }
-} else {
-    Write-Host "[!] Skipping terminal customization." -ForegroundColor Yellow
 }
 
-Write-Host "`n[+++] SETUP COMPLETE! ($currentVersion)" -ForegroundColor Green
-Write-Host "Restart PowerShell to enable the 'menu' command." -ForegroundColor Yellow
+Write-Host "`nInstall complete." -ForegroundColor Green
+Write-Host "Open a NEW PowerShell window (the profile loads at startup), then run: " -NoNewline
+Write-Host 'toolkit' -ForegroundColor Cyan
