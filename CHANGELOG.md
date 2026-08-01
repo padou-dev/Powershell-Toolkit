@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.0] — 2026-07-31
+
+### Added
+- `hash_ls`: interactive VirusTotal integration — select any listed file to see how many engines flag its hash (color-coded), with option to open the full report in the browser. Only the hash is sent, never the file. API key is read from the `VT_API_KEY` user environment variable (offered to save on first run); without a key, browser lookup still works. Handles 404 (hash unknown to VT), 429 (free-tier rate limit), and 401 (bad key) explicitly.
+
 ## [1.2.0] — 2026-07-23
 
 ### Changed
