@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.1] — 2026-07-31
+
+### Changed
+- `hash_ls`: quit the VirusTotal prompt with `Q` instead of a blank Enter
+- Menu: returning from a function now takes a single `Q` keypress (no Enter needed)
+
 ## [1.3.0] — 2026-07-31
 
 ### Added

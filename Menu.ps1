@@ -52,7 +52,12 @@ do {
                 Write-Host ''
                 & $fn.command
                 Write-Host ''
-                Read-Host '  Done — press Enter to return to the menu'
+                # WHY ReadKey instead of Read-Host: Read-Host always waits for
+                # Enter, so "press Q" would really mean "press Q then Enter".
+                # ReadKey($true) captures a single keypress ($true = don't echo
+                # it to the screen) for a true one-key return.
+                Write-Host '  Press Q to return to the menu' -ForegroundColor DarkGray
+                do { $key = [Console]::ReadKey($true) } until ($key.Key -eq 'Q')
             } else {
                 Write-Host '  Invalid selection.' -ForegroundColor Yellow
             }

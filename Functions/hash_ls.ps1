@@ -56,8 +56,8 @@ function hash_ls {
     # Interactive lookup loop
     # ------------------------------------------------------------------
     while ($true) {
-        $choice = Read-Host "`nEnter a file # to check on VirusTotal (Enter to exit)"
-        if ([string]::IsNullOrWhiteSpace($choice)) { return }
+        $choice = Read-Host "`nEnter a file # to check on VirusTotal (Q to quit)"
+        if ($choice -match '^[Qq]$') { return }
         if ($choice -notmatch '^\d+$' -or [int]$choice -lt 1 -or [int]$choice -gt $results.Count) {
             Write-Host 'Invalid selection.' -ForegroundColor Yellow
             continue
