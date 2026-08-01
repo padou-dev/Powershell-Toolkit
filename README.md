@@ -89,6 +89,18 @@ Removes the toolkit directory and the managed profile block. Backups are deliber
 
 **Something broke my profile** — restore any timestamped backup: `Copy-Item "$PROFILE.bak-<timestamp>" $PROFILE`
 
+## VirusTotal integration (`hash_ls`)
+
+`hash_ls` can look up file hashes on [VirusTotal](https://www.virustotal.com). To enable it, you need your own **free** VirusTotal API key (sign up, then Profile → API key) — on first run, `hash_ls` will offer to save it to the `VT_API_KEY` user environment variable. Without a key, hash lookups still work via the browser.
+
+> [!IMPORTANT]
+> **Disclaimer:**
+> - This integration uses the VirusTotal **public API**, which is for **personal, non-commercial use only** — do not use it in commercial products or business workflows. See [VirusTotal's terms](https://docs.virustotal.com/reference/getting-started).
+> - Only the **SHA256 hash** is sent to VirusTotal — never the file itself.
+> - Results are a lookup, **not a verdict**. A hash unknown to VirusTotal (404) means *no data*, not *clean* — and 0 detections means no engine currently flags it, not that a file is guaranteed safe. This tool is not a substitute for antivirus software.
+> - The free tier is rate-limited (4 lookups/minute, 500/day). Bring your own API key; never commit it to the repo.
+> - This project is not affiliated with or endorsed by VirusTotal.
+
 ## License
 
 [MIT](LICENSE)
