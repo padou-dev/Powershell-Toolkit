@@ -9,7 +9,7 @@
     - Copies/downloads function scripts into <ProfileDir>\Toolkit\Functions
     - Manages a clearly-marked block in your PowerShell profile (never
       overwrites anything outside the markers, backs up before every change)
-    - Optionally injects a Windows Terminal color scheme (backed up first)
+    - Optionally injects Windows Terminal color schemes (backed up first)
 
     Source auto-detection: if manifest.json sits next to this script (i.e. you
     cloned the repo), files are copied locally — ideal for testing changes
@@ -68,6 +68,20 @@ if (Test-Path (Join-Path `$toolkitRoot 'Functions')) {
         ForEach-Object { . `$_.FullName }
 }
 function toolkit { & (Join-Path `$toolkitRoot 'Menu.ps1') }
+
+# Import the modules the manifest installs. WHY read the manifest instead of
+# hardcoding names: modules are data — add one to manifest.json and every
+# machine imports it after its next update, no profile edits anywhere.
+`$tkManifest = Join-Path `$toolkitRoot 'manifest.json'
+if (Test-Path `$tkManifest) {
+    foreach (`$tkModule in (Get-Content `$tkManifest -Raw | ConvertFrom-Json).modules) {
+        # SilentlyContinue: a missing module shouldn't error every shell start.
+        Import-Module -Name `$tkModule -ErrorAction SilentlyContinue
+    }
+}
+
+# Shell preferences (part of the toolkit's standard environment)
+Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
 $EndMark
 "@
 }
@@ -145,6 +159,13 @@ function Get-ToolkitFile {
             throw "Failed to fetch '$RelativePath': $($_.Exception.Message)"
         }
     }
+
+    # WHY: files downloaded by Invoke-WebRequest get the Mark of the Web, and
+    # Copy-Item preserves it from marked sources. Either way the installed
+    # copy would be refused by RemoteSigned execution policy. The user chose
+    # to run this installer, so unblocking what it installs is the intended
+    # outcome, not a bypass.
+    Unblock-File -Path $Destination -ErrorAction SilentlyContinue
 }
 
 # ----------------------------------------------------------------------------
@@ -182,7 +203,7 @@ Write-Step 'Updating PowerShell profile'
 Update-Profile
 
 # ----------------------------------------------------------------------------
-# Windows Terminal color scheme (optional)
+# Windows Terminal color schemes (optional)
 # ----------------------------------------------------------------------------
 if (-not $SkipTerminal) {
     $wtSettings = Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json'
