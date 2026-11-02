@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.1] — 2026-11-01
+
+### Fixed
+- `space_to_dots`: crashed under strict mode when exactly one file matched — a single pipeline result is a bare object with no `.Count`; results are now wrapped in `@()` to guarantee an array
+
 ## [1.4.0] — 2026-08-16
 
 ### Changed

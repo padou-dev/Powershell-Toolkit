@@ -10,7 +10,7 @@ function space_to_dots {
     - Preview + confirm before touching anything, same contract as
       mass_rename: destructive operations always show their work first.
     #>
-    $files = Get-ChildItem -File | Where-Object { $_.Name -match ' ' }
+    $files = @(Get-ChildItem -File | Where-Object { $_.Name -match ' ' })
     if (-not $files) {
         Write-Host 'No filenames containing spaces found.' -ForegroundColor Yellow
         return
